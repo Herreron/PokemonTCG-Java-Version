@@ -1,0 +1,1 @@
+aqui va todo lo relacionado a las cartas 
