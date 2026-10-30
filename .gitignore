@@ -1,5 +1,6 @@
 *.class
-.vscode/
+.vscode/*
+!.vscode/settings.json
 bin/
 
 *.bkp
