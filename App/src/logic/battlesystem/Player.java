@@ -96,50 +96,6 @@ public void attackOpponent(PokemonCard card) {
     
 }
 
-public boolean evolvePokemon(PokemonCard evolution) {
-    if (evolution == null || evolution.getPhase() == 1 || hand == null
-            || !hand.getCards().contains(evolution)) {
-        return false;
-    }
-
-    PokemonCard pokemonToEvolve = null;
-    boolean isActivePokemon = false;
-
-    if (activePokemon != null && canEvolve(activePokemon, evolution)) {
-        pokemonToEvolve = activePokemon;
-        isActivePokemon = true;
-    } else if (bank != null) {
-        for (PokemonCard pokemon : bank) {
-            if (canEvolve(pokemon, evolution)) {
-                pokemonToEvolve = pokemon;
-                break;
-            }
-        }
-    }
-
-    if (pokemonToEvolve == null) {
-        return false;
-    }
-
-    evolution.setAttachedEnergy(pokemonToEvolve.getAttachedEnergy());
-    int damageTaken = pokemonToEvolve.getMaxHealthPoints() - pokemonToEvolve.getHealthPoints();
-    evolution.receiveDamage(damageTaken);
-
-    if (isActivePokemon) {
-        activePokemon = evolution;
-    } else {
-        bank.set(bank.indexOf(pokemonToEvolve), evolution);
-    }
-    hand.removeCard(evolution);
-    return true;
-}
-
-private boolean canEvolve(PokemonCard currentPokemon, PokemonCard evolution) {
-    return currentPokemon != null
-            && evolution.getPhase() == currentPokemon.getPhase() + 1
-            && evolution.getEvolvesFrom().equals(currentPokemon.getName());
-}
-
 
 
 

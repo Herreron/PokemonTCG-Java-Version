@@ -1,4 +1,5 @@
 package logic.cards;
+
 import java.util.ArrayList;
 
 public final class PokemonCatalog {
