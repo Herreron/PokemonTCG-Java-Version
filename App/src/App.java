@@ -1,9 +1,8 @@
-import logic.battlesystem.Game;
+import logic.battlesystem.ConsoleUI;
 
 public class App {
-    public static void main(String[] args) throws Exception {
-        Game game = new Game();
-        game.start();
+    public static void main(String[] args) {
+        ConsoleUI console = new ConsoleUI();
+        console.run();
     }
 }
-
