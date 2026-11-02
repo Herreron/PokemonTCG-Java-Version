@@ -101,23 +101,14 @@ healthPoints = Math.max(0, healthPoints - amount);
 
 public void receiveDamage(int amount, Type attackerType) {
 int total = amount;
-if (isWeakTo(attackerType)) {
-total += 20;
+if (type.isWeakTo(attackerType)) {
+total += Type.WEAKNESS_BONUS;
         }
 receiveDamage(total);
     }
 
-private boolean isWeakTo(Type attackerType) {
-switch (type) {
-case WATER:
-return attackerType == Type.FIRE || attackerType == Type.ELECTRIC;
-case FIRE:
-return attackerType == Type.WATER;
-case COLORLESS:
-return attackerType == Type.PSYCHIC;
-default:
-return false;
-        }
+public void heal(int amount) {
+healthPoints = Math.min(maxHealthPoints, healthPoints + amount);
     }
 
 public boolean isDefeated() {
