@@ -107,6 +107,10 @@ total += Type.WEAKNESS_BONUS;
 receiveDamage(total);
     }
 
+public void heal(int amount) {
+healthPoints = Math.min(maxHealthPoints, healthPoints + amount);
+    }
+
 public boolean isDefeated() {
 return healthPoints <= 0;
     }
