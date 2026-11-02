@@ -1,91 +1,145 @@
 package logic.battlesystem;
 
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
-import java.util.function.Supplier;
 import logic.cards.AbstractCard;
 import logic.cards.PokemonCard;
-import logic.cards.PokemonCatalog;
 
 public class ConsoleUI {
 
+
     private final Scanner scanner;
-    private final PrintStream output;
     private boolean running;
 
     public ConsoleUI() {
-        this(new Scanner(System.in), System.out);
+        scanner = new Scanner(System.in);
     }
 
-    ConsoleUI(Scanner scanner, PrintStream output) {
-        this.scanner = scanner;
-        this.output = output;
-    }
-
+    // Ejecuta el menú principal y mantiene la aplicación activa hasta que se solicite salir.
     public void run() {
         running = true;
+        clearConsole();
+
+        // menu principal
         while (running) {
-            output.println("\n=== Pokemon TCG Pocket ===");
-            output.println("1. Nueva partida rapida");
-            output.println("0. Salir");
+            showMainMenu();
             int choice = readChoice("Selecciona una opcion: ", 0, 1);
+
             if (!running || choice == 0) {
                 running = false;
             } else {
                 startQuickMatch();
+                if (running) {
+                    pauseAndClear("Presiona ENTER para volver al menu principal.");
+                }
             }
         }
     }
 
+    // Mantiene el menú de inicio separado del flujo de la partida.
+    private void showMainMenu() {
+        System.out.println("===================================");
+        System.out.println("       POKEMON TCG POCKET Java Version");
+        System.out.println("1. Iniciar partida rapida");
+        System.out.println("0. Salir");
+        System.out.println("-----------------------------------");
+    }
+
+    // Coordina la creación de jugadores, mazos y la preparación privada de cada mano.
     private void startQuickMatch() {
+        // Se piden ambos nombres antes de crear jugadores o mazos.
         String firstName = readName("Nombre del jugador 1: ");
+        if (!running) {
+            return;
+        }
+
         String secondName = readName("Nombre del jugador 2: ");
+        if (!running) {
+            return;
+        }
 
         try {
-            List<Supplier<? extends AbstractCard>> definitions = getAvailableCardDefinitions();
-            Deck firstDeck = DeckFactory.createRandomDeck(definitions);
-            Deck secondDeck = DeckFactory.createRandomDeck(definitions);
+            // Cada jugador recibe un mazo distinto, construido a partir del catálogo disponible.
+            Deck firstDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
+            Deck secondDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
             Player firstPlayer = createPlayer(firstName, firstDeck);
             Player secondPlayer = createPlayer(secondName, secondDeck);
             Game game = new Game(firstPlayer, secondPlayer);
+
             game.prepareInitialHands();
 
+            // La preparación se hace por separado y se limpia la consola entre jugadores.
             setupInitialField(firstPlayer);
+            if (!running) {
+                return;
+            }
+
+            pauseAndClear("Preparacion del jugador 1 terminada. Entrega la consola al jugador 2 y presiona ENTER.");
+            if (!running) {
+                return;
+            }
+
             setupInitialField(secondPlayer);
+            if (!running) {
+                return;
+            }
+
+            pauseAndClear("Preparacion terminada. Presiona ENTER para iniciar el duelo.");
+            if (!running) {
+                return;
+            }
 
             Player firstTurnPlayer = game.flipCoinToStart();
             game.setCurrentPlayer(firstTurnPlayer);
-            output.println("La moneda favorece a " + firstTurnPlayer.getName() + ".");
+            System.out.println("La moneda favorece a " + firstTurnPlayer.getName() + ".");
+            pauseAndClear("Presiona ENTER para comenzar el primer turno.");
+            if (!running) {
+                return;
+            }
             playMatch(game);
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            output.println("No se pudo iniciar la partida: " + exception.getMessage());
+            System.out.println("No se pudo iniciar la partida: " + exception.getMessage());
         }
     }
 
-    private List<Supplier<? extends AbstractCard>> getAvailableCardDefinitions() {
-        return List.of(
-                PokemonCatalog::createCharmander,
-                PokemonCatalog::createCharmeleon,
-                PokemonCatalog::createCharizard);
+    // El catálogo visible se expresa como nombres; DeckFactory resuelve cada nombre con PokemonCatalog.
+    private List<String> getAvailableCardNames() {
+        ArrayList<String> cardNames = new ArrayList<>();
+        cardNames.add("Charmander");
+        cardNames.add("Charmeleon");
+        cardNames.add("Charizard");
+        return cardNames;
     }
 
     private Player createPlayer(String name, Deck deck) {
         return new Player(name, deck, new Hand(), new ArrayList<>(), null, (byte) 0, (byte) 0);
     }
 
+    // Cada jugador ve y elige sus propias cartas iniciales sin dejar la mano visible al siguiente.
     private void setupInitialField(Player player) {
+        clearConsole();
+        System.out.println("===================================");
+        System.out.println("Preparacion del campo: " + player.getName());
+        System.out.println("===================================");
+
+        PokemonCard activePokemon = chooseBasicPokemon(player, "activo");
         if (!running) {
             return;
         }
-        output.println("\n" + player.getName() + ", elige tu Pokemon activo.");
-        PokemonCard activePokemon = chooseBasicPokemon(player, "Activo");
+
         while (!player.selectInitialActivePokemon(activePokemon)) {
-            output.println("No se pudo elegir ese Pokemon. Intenta de nuevo.");
-            activePokemon = chooseBasicPokemon(player, "Activo");
+            System.out.println("No se pudo elegir ese Pokemon. Intenta de nuevo.");
+            activePokemon = chooseBasicPokemon(player, "activo");
+            if (!running) {
+                return;
+            }
         }
 
+        chooseInitialBenchPokemon(player);
+    }
+
+    private void chooseInitialBenchPokemon(Player player) {
         while (player.getBank().size() < 2) {
             ArrayList<PokemonCard> basicPokemon = player.getHand().getBasicPokemonCards();
             if (basicPokemon.isEmpty()) {
@@ -98,151 +152,240 @@ public class ConsoleUI {
                 break;
             }
 
-            PokemonCard pokemon = chooseBasicPokemon(player, "Banca");
+            PokemonCard pokemon = chooseBasicPokemon(player, "la banca");
+            if (!running) {
+                return;
+            }
+
             if (!player.placeOnBench(pokemon)) {
-                output.println("No se pudo colocar ese Pokemon en la banca.");
+                System.out.println("No se pudo colocar ese Pokemon en la banca.");
             }
         }
     }
 
+    // Presenta solo los básicos que el jugador puede colocar como activo o en banca.
     private PokemonCard chooseBasicPokemon(Player player, String destination) {
         ArrayList<PokemonCard> basicPokemon = player.getHand().getBasicPokemonCards();
         if (basicPokemon.isEmpty()) {
-            throw new IllegalStateException("No hay Pokemon basicos disponibles para " + destination + ".");
+            throw new IllegalStateException(
+                    "No hay Pokemon basicos disponibles para elegir como " + destination + ".");
         }
 
+        System.out.println("\nElige el Pokemon " + destination + ":");
         for (int i = 0; i < basicPokemon.size(); i++) {
-            output.println((i + 1) + ". " + basicPokemon.get(i));
+            System.out.println((i + 1) + ". " + basicPokemon.get(i));
         }
-        int choice = readChoice("Elige una carta para " + destination + ": ", 1, basicPokemon.size());
+
+        int choice = readChoice("Seleccion: ", 1, basicPokemon.size());
+        if (!running) {
+            return null;
+        }
         return basicPokemon.get(choice - 1);
     }
 
     private void playMatch(Game game) {
+        // Game prepara cada turno; esta interfaz presenta opciones y delega acciones en Player.
         while (running && !game.isFinished()) {
             if (!game.startTurn()) {
                 break;
             }
 
-            boolean turnEnded = false;
-            while (running && !turnEnded && !game.isFinished()) {
-                game.checkWinner();
-                if (game.isFinished()) {
-                    break;
-                }
-
-                Player currentPlayer = game.getCurrentPlayer();
-                showField(game);
-                output.println("\nAcciones:");
-                output.println("1. Adjuntar energia de zona");
-                output.println("2. Jugar carta de entrenador (pendiente)");
-                output.println("3. Colocar Pokemon basico en la banca");
-                output.println("4. Retirar Pokemon activo");
-                output.println("5. Atacar (pendiente de la clase Attack)");
-                output.println("6. Evolucionar Pokemon");
-                output.println("7. Pasar turno");
-
-                int action = readChoice("Elige una accion: ", 1, 7);
-                if (!running) {
-                    return;
-                }
-
-                switch (action) {
-                    case 1 -> attachEnergy(currentPlayer);
-                    case 2 -> output.println("Las cartas de entrenador aun no estan implementadas.");
-                    case 3 -> placeOnBench(currentPlayer);
-                    case 4 -> retreat(currentPlayer);
-                    case 5 -> output.println("El ataque estara disponible cuando Attack tenga sus datos.");
-                    case 6 -> evolve(currentPlayer);
-                    case 7 -> turnEnded = true;
-                    default -> throw new IllegalStateException("Opcion de accion no valida.");
-                }
-
-                game.checkWinner();
-            }
-
-            if (running && !game.isFinished() && turnEnded) {
-                game.endTurn();
+            boolean turnEnded = playCurrentTurn(game);
+            if (running && turnEnded && !game.isFinished()) {
+                changeTurn(game);
             }
         }
 
         if (game.getWinner() != null) {
-            output.println("\n¡" + game.getWinner().getName() + " gana el duelo!");
+            clearConsole();
+            System.out.println("===================================");
+            System.out.println("¡" + game.getWinner().getName() + " gana el duelo!");
+            System.out.println("===================================");
         }
     }
 
+    // Repite las acciones de un turno hasta que el jugador pasa o la partida termina.
+    private boolean playCurrentTurn(Game game) {
+        while (running && !game.isFinished()) {
+            game.checkWinner();
+            if (game.isFinished()) {
+                return false;
+            }
+
+            Player currentPlayer = game.getCurrentPlayer();
+            showField(game);
+            showTurnMenu();
+            int action = readChoice("Elige una accion: ", 1, 7);
+            if (!running) {
+                return false;
+            }
+
+            if (executeAction(action, currentPlayer)) {
+                return true;
+            }
+            game.checkWinner();
+        }
+        return false;
+    }
+
+    private void showTurnMenu() {
+        System.out.println("\n-----------------------------------");
+        System.out.println("Acciones disponibles:");
+        System.out.println("1. Adjuntar energia de zona");
+        System.out.println("2. Jugar carta de entrenador (pendiente)");
+        System.out.println("3. Colocar Pokemon basico en la banca");
+        System.out.println("4. Retirar Pokemon activo");
+        System.out.println("5. Atacar (pendiente de integrar Attack)");
+        System.out.println("6. Evolucionar Pokemon");
+        System.out.println("7. Pasar turno");
+        System.out.println("-----------------------------------");
+    }
+
+    // Traduce la opción numérica a una acción del jugador sin concentrar el detalle del menú en el ciclo.
+    private boolean executeAction(int action, Player player) {
+        switch (action) {
+            case 1:
+                attachEnergy(player);
+                return false;
+            case 2:
+                System.out.println("Las cartas de entrenador aun no estan implementadas.");
+                return false;
+            case 3:
+                placeOnBench(player);
+                return false;
+            case 4:
+                retreat(player);
+                return false;
+            case 5:
+                System.out.println("El ataque estara disponible cuando se integre la clase Attack.");
+                return false;
+            case 6:
+                evolve(player);
+                return false;
+            case 7:
+                return true;
+            default:
+                throw new IllegalArgumentException("La opcion de accion no es valida.");
+        }
+    }
+
+    private void changeTurn(Game game) {
+        String previousPlayerName = game.getCurrentPlayer().getName();
+        game.endTurn();
+        String nextPlayerName = game.getCurrentPlayer().getName();
+        pauseAndClear(
+                "Turno de " + previousPlayerName + " terminado. Entrega la consola a "
+                        + nextPlayerName + " y presiona ENTER.");
+    }
+
+    // Presenta solo los Pokémon propios para que el usuario elija dónde adjuntar la energía.
     private void attachEnergy(Player player) {
         ArrayList<PokemonCard> pokemonInPlay = getPokemonInPlay(player);
         if (player.getAvailableEnergy() <= 0 || pokemonInPlay.isEmpty()) {
-            output.println("No hay energia disponible o Pokemon en juego.");
+            System.out.println("No hay energia disponible o Pokemon en juego.");
             return;
         }
 
+        System.out.println("\nElige un Pokemon en juego:");
         for (int i = 0; i < pokemonInPlay.size(); i++) {
-            output.println((i + 1) + ". " + pokemonInPlay.get(i));
+            System.out.println((i + 1) + ". " + pokemonInPlay.get(i));
         }
-        int choice = readChoice("Elige el Pokemon que recibe energia: ", 1, pokemonInPlay.size());
+
+        int choice = readChoice("Seleccion: ", 1, pokemonInPlay.size());
+        if (!running) {
+            return;
+        }
+
         if (player.attachEnergy(pokemonInPlay.get(choice - 1))) {
-            output.println("Energia adjuntada.");
+            System.out.println("Energia adjuntada.");
         } else {
-            output.println("No se pudo adjuntar energia.");
+            System.out.println("No se pudo adjuntar energia.");
         }
     }
 
     private void placeOnBench(Player player) {
         ArrayList<PokemonCard> basicPokemon = player.getHand().getBasicPokemonCards();
         if (basicPokemon.isEmpty() || player.getBank().size() >= 2) {
-            output.println("No hay Pokemon basicos disponibles o la banca esta llena.");
+            System.out.println("No hay Pokemon basicos disponibles o la banca esta llena.");
             return;
         }
 
+        System.out.println("\nPokemon basicos en tu mano:");
         for (int i = 0; i < basicPokemon.size(); i++) {
-            output.println((i + 1) + ". " + basicPokemon.get(i));
+            System.out.println((i + 1) + ". " + basicPokemon.get(i));
         }
-        int choice = readChoice("Elige el Pokemon que colocaras en la banca: ", 1, basicPokemon.size());
-        output.println(player.placeOnBench(basicPokemon.get(choice - 1))
-                ? "Pokemon colocado en la banca."
-                : "No se pudo colocar ese Pokemon.");
+
+        int choice = readChoice("Elige el Pokemon para la banca: ", 1, basicPokemon.size());
+        if (!running) {
+            return;
+        }
+
+        if (player.placeOnBench(basicPokemon.get(choice - 1))) {
+            System.out.println("Pokemon colocado en la banca.");
+        } else {
+            System.out.println("No se pudo colocar ese Pokemon.");
+        }
     }
 
     private void retreat(Player player) {
         if (player.getBank().isEmpty()) {
-            output.println("No hay Pokemon en la banca.");
+            System.out.println("No hay Pokemon en la banca.");
             return;
         }
 
+        System.out.println("\nElige el nuevo Pokemon activo:");
         for (int i = 0; i < player.getBank().size(); i++) {
-            output.println((i + 1) + ". " + player.getBank().get(i));
+            System.out.println((i + 1) + ". " + player.getBank().get(i));
         }
-        int choice = readChoice("Elige el Pokemon que sera el nuevo activo: ", 1, player.getBank().size());
-        output.println(player.retreatActive(player.getBank().get(choice - 1))
-                ? "Retirada realizada."
-                : "No se pudo retirar: revisa el costo de retirada y las energias adjuntas.");
+
+        int choice = readChoice("Seleccion: ", 1, player.getBank().size());
+        if (!running) {
+            return;
+        }
+
+        if (player.retreatActive(player.getBank().get(choice - 1))) {
+            System.out.println("Retirada realizada.");
+        } else {
+            System.out.println("No se pudo retirar: revisa el costo y las energias adjuntas.");
+        }
     }
 
     private void evolve(Player player) {
+        ArrayList<PokemonCard> evolutions = getEvolutionsInHand(player);
+        if (evolutions.isEmpty()) {
+            System.out.println("No tienes cartas de evolucion en la mano.");
+            return;
+        }
+
+        System.out.println("\nEvoluciones disponibles:");
+        for (int i = 0; i < evolutions.size(); i++) {
+            System.out.println((i + 1) + ". " + evolutions.get(i));
+        }
+
+        int choice = readChoice("Elige la evolucion: ", 1, evolutions.size());
+        if (!running) {
+            return;
+        }
+
+        if (player.evolvePokemon(evolutions.get(choice - 1))) {
+            System.out.println("Evolucion realizada.");
+        } else {
+            System.out.println("Ningun Pokemon en juego cumple el requisito de evolucion.");
+        }
+    }
+
+    private ArrayList<PokemonCard> getEvolutionsInHand(Player player) {
         ArrayList<PokemonCard> evolutions = new ArrayList<>();
         for (AbstractCard card : player.getHand().getCards()) {
             if (card instanceof PokemonCard pokemon && !pokemon.isBasicPokemon()) {
                 evolutions.add(pokemon);
             }
         }
-
-        if (evolutions.isEmpty()) {
-            output.println("No tienes cartas de evolucion en la mano.");
-            return;
-        }
-
-        for (int i = 0; i < evolutions.size(); i++) {
-            output.println((i + 1) + ". " + evolutions.get(i));
-        }
-        int choice = readChoice("Elige la evolucion que deseas jugar: ", 1, evolutions.size());
-        output.println(player.evolvePokemon(evolutions.get(choice - 1))
-                ? "Evolucion realizada."
-                : "No hay un Pokemon en juego que cumpla el requisito de evolucion.");
+        return evolutions;
     }
 
     private void showField(Game game) {
+        // Solo se muestra la mano del jugador actual; la mano rival permanece privada.
         Player current = game.getCurrentPlayer();
         Player opponent;
         if (current == game.getPlayerOne()) {
@@ -251,27 +394,38 @@ public class ConsoleUI {
             opponent = game.getPlayerOne();
         }
 
-        output.println("\n===== TURNO " + game.getTurnNumber() + " — " + current.getName() + " =====");
+        System.out.println("\n===================================");
+        System.out.println("TURNO " + game.getTurnNumber() + " — " + current.getName());
+        System.out.println("===================================");
         showPlayerField("RIVAL", opponent);
         showPlayerField("TU CAMPO", current);
-        output.println("\nPuntos de premio: " + current.getPrizePoints() + "/3");
-        output.println("Energia disponible: " + current.getAvailableEnergy());
-        output.println("Tu mano (" + current.getHand().size() + " cartas):");
-        for (int i = 0; i < current.getHand().getCards().size(); i++) {
-            output.println("  " + (i + 1) + ". " + current.getHand().getCard(i).getName());
-        }
+        System.out.println("\nPremios propios: " + current.getPrizePoints() + "/3");
+        System.out.println("Energia disponible: " + current.getAvailableEnergy());
+        showCurrentHand(current);
     }
 
     private void showPlayerField(String label, Player player) {
-        output.println("\n" + label + " (" + player.getName() + ") — premios: " + player.getPrizePoints() + "/3");
-        if (player.getActivePokemon() == null) {
-            output.println("  [Activo] ninguno");
+        System.out.println("\n--- " + label + " (" + player.getName() + ") ---");
+        System.out.println("Puntos de premio: " + player.getPrizePoints() + "/3");
+        PokemonCard activePokemon = player.getActivePokemon();
+        if (activePokemon == null) {
+            System.out.println("[Activo] ninguno");
         } else {
-            output.println("  [Activo] " + player.getActivePokemon()
-                    + ", energia: " + player.getActivePokemon().getAttachedEnergy());
+            System.out.println("[Activo] " + activePokemon
+                    + " | Energia adjunta: " + activePokemon.getAttachedEnergy());
         }
+
         for (PokemonCard pokemon : player.getBank()) {
-            output.println("  [Banca] " + pokemon + ", energia: " + pokemon.getAttachedEnergy());
+            System.out.println("[Banca] " + pokemon
+                    + " | Energia adjunta: " + pokemon.getAttachedEnergy());
+        }
+    }
+
+    private void showCurrentHand(Player player) {
+        System.out.println("\n--- Mano de " + player.getName()
+                + " (" + player.getHand().size() + " cartas) ---");
+        for (int i = 0; i < player.getHand().getCards().size(); i++) {
+            System.out.println((i + 1) + ". " + player.getHand().getCard(i).getName());
         }
     }
 
@@ -285,24 +439,27 @@ public class ConsoleUI {
     }
 
     private String readName(String prompt) {
+        // La validación y la lectura quedan juntas para no permitir nombres vacíos en la partida.
         while (running) {
-            output.print(prompt);
+            System.out.println(prompt);
             if (!scanner.hasNextLine()) {
                 running = false;
                 return "";
             }
+
             String name = scanner.nextLine().trim();
             if (!name.isEmpty()) {
                 return name;
             }
-            output.println("El nombre no puede estar vacio.");
+            System.out.println("El nombre no puede estar vacio.");
         }
         return "";
     }
 
     private int readChoice(String prompt, int minimum, int maximum) {
+        // Se vuelve a pedir la opción ante texto no numérico o valores fuera del menú.
         while (running) {
-            output.print(prompt);
+            System.out.println(prompt);
             if (!scanner.hasNextLine()) {
                 running = false;
                 return minimum;
@@ -315,11 +472,34 @@ public class ConsoleUI {
                     return choice;
                 }
             } catch (NumberFormatException exception) {
-                output.println("Ingresa un numero valido.");
+                System.out.println("Ingresa un numero valido.");
                 continue;
             }
-            output.println("Elige un numero entre " + minimum + " y " + maximum + ".");
+            System.out.println("Elige un numero entre " + minimum + " y " + maximum + ".");
         }
         return minimum;
+    }
+
+    private void pauseAndClear(String message) {
+        // La pausa permite entregar físicamente la consola antes de ocultar la información anterior.
+        System.out.println("\n" + message);
+        if (scanner.hasNextLine()) {
+            scanner.nextLine();
+            clearConsole();
+        } else {
+            running = false;
+        }
+    }
+
+    private void clearConsole() {
+        // ANSI funciona en terminales compatibles; en consolas sin soporte se desplaza el contenido.
+        if (System.console() != null && !System.getProperty("os.name").startsWith("Windows")) {
+            System.out.println("\033[H\033[2J");
+            System.out.flush();
+        } else {
+            for (int line = 0; line < 40; line++) {
+                System.out.println();
+            }
+        }
     }
 }

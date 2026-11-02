@@ -1,22 +1,20 @@
-//carpetas
 package logic.battlesystem;
 
-//funciones de java
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.function.Supplier;
-//importes de clases
 import logic.cards.AbstractCard;
 import logic.cards.PokemonCard;
+import logic.cards.PokemonCatalog;
 
 public final class DeckFactory {
 
     private DeckFactory() {
     }
 
+    /**
+     * Construye un mazo con cartas ya elegidas y verifica que respete las reglas del proyecto.
+     */
     public static Deck createValidatedDeck(List<? extends AbstractCard> cards) {
         if (cards == null) {
             throw new IllegalArgumentException("La lista de cartas no puede ser null.");
@@ -30,88 +28,78 @@ public final class DeckFactory {
         return deck;
     }
 
-    public static Deck createRandomDeck(List<? extends Supplier<? extends AbstractCard>> cardDefinitions) {
-        if (cardDefinitions == null) {
-            throw new IllegalArgumentException("La lista de definiciones de cartas no puede ser null.");
+    /**
+     * Fabrica un mazo aleatorio usando nombres y el catalogo central de cartas.
+     *
+     * Cada nombre aporta como maximo dos cartas. Se reservan seis copias de Pokemon basicos
+     * antes de completar el resto del mazo, evitando que el azar rompa la regla de RF4.
+     */
+    public static Deck createRandomDeck(List<String> availableCardNames) {
+        if (availableCardNames == null) {
+            throw new IllegalArgumentException("La lista de nombres de cartas no puede ser null.");
         }
 
-        ArrayList<CardCopies> definitions = new ArrayList<>();
-        Set<String> cardNames = new HashSet<>();
+        ArrayList<AbstractCard> firstCopies = new ArrayList<>();
+        ArrayList<AbstractCard> secondCopies = new ArrayList<>();
+        ArrayList<AbstractCard> basicCopies = new ArrayList<>();
+        ArrayList<String> processedNames = new ArrayList<>();
 
-        for (Supplier<? extends AbstractCard> cardDefinition : cardDefinitions) {
-            if (cardDefinition == null) {
-                throw new IllegalArgumentException("Las definiciones de cartas no pueden ser null.");
+        // Se crea cada carta por nombre y se descartan nombres repetidos en la lista de entrada.
+        for (String cardName : availableCardNames) {
+            if (cardName == null || cardName.isBlank()) {
+                throw new IllegalArgumentException("Los nombres de cartas no pueden ser null o vacios.");
             }
-
-            AbstractCard firstCopy = createCard(cardDefinition);
-            if (!cardNames.add(firstCopy.getName())) {
+            if (processedNames.contains(cardName)) {
                 continue;
             }
+            processedNames.add(cardName);
 
-            AbstractCard secondCopy = createCard(cardDefinition);
+            AbstractCard firstCopy = PokemonCatalog.createCardByName(cardName);
+            AbstractCard secondCopy = PokemonCatalog.createCardByName(cardName);
             if (firstCopy == secondCopy) {
-                throw new IllegalArgumentException(
-                        "Cada definicion debe crear instancias independientes de la carta.");
+                throw new IllegalStateException("El catalogo debe crear una instancia nueva por carta.");
             }
-            definitions.add(new CardCopies(firstCopy, secondCopy));
+
+            firstCopies.add(firstCopy);
+            secondCopies.add(secondCopy);
+
+            // Solo los Pokemon de fase 1 cuentan para el mínimo de básicos.
+            if (firstCopy instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
+                basicCopies.add(firstCopy);
+                basicCopies.add(secondCopy);
+            }
         }
 
-        ArrayList<CardCopies> basicDefinitions = new ArrayList<>();
-        for (CardCopies definition : definitions) {
-            if (definition.firstCopy instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
-                basicDefinitions.add(definition);
-            }
-        }
-
-        if (basicDefinitions.size() < 6 || definitions.size() * 2 < 20) {
+        // Con dos copias máximas por nombre, hacen falta tres básicos distintos como mínimo.
+        if (basicCopies.size() < 6) {
             throw new IllegalArgumentException(
-                    "El catalogo disponible no permite crear un mazo valido: se requieren al menos "
-                            + "6 Pokemon basicos distintos y capacidad para 20 cartas con maximo 2 copias.");
+                    "El catalogo necesita al menos 3 Pokemon basicos distintos para cumplir "
+                            + "el minimo de 6 basicos, con maximo 2 copias por carta.");
         }
 
-        Collections.shuffle(basicDefinitions);
-        ArrayList<AbstractCard> cards = new ArrayList<>();
-        Set<AbstractCard> selectedCards = new HashSet<>();
+        // Diez nombres distintos permiten aportar las veinte cartas sin exceder el límite de copias.
+        if (firstCopies.size() + secondCopies.size() < 20) {
+            throw new IllegalArgumentException(
+                    "El catalogo necesita al menos 10 nombres de cartas distintos para completar un mazo de 20.");
+        }
+
+        // Se garantizan seis básicos, retirándolos del conjunto antes de llenar los espacios restantes.
+        Collections.shuffle(basicCopies);
+        ArrayList<AbstractCard> deckCards = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
-            AbstractCard basic = basicDefinitions.get(i).firstCopy;
-            cards.add(basic);
-            selectedCards.add(basic);
+            AbstractCard basic = basicCopies.get(i);
+            deckCards.add(basic);
+            firstCopies.remove(basic);
+            secondCopies.remove(basic);
         }
 
-        ArrayList<AbstractCard> remainingCopies = new ArrayList<>();
-        for (CardCopies definition : definitions) {
-            if (!selectedCards.contains(definition.firstCopy)) {
-                remainingCopies.add(definition.firstCopy);
-            }
-            remainingCopies.add(definition.secondCopy);
-        }
+        // Se mezclan las copias restantes y se seleccionan las necesarias para completar veinte.
+        ArrayList<AbstractCard> remainingCopies = new ArrayList<>(firstCopies);
+        remainingCopies.addAll(secondCopies);
         Collections.shuffle(remainingCopies);
+        deckCards.addAll(remainingCopies.subList(0, 20 - deckCards.size()));
+        Collections.shuffle(deckCards);
 
-        int remainingCards = 20 - cards.size();
-        if (remainingCopies.size() < remainingCards) {
-            throw new IllegalArgumentException("El catalogo no contiene suficientes cartas para completar el mazo.");
-        }
-        cards.addAll(remainingCopies.subList(0, remainingCards));
-
-        Collections.shuffle(cards);
-        return createValidatedDeck(cards);
-    }
-
-    private static AbstractCard createCard(Supplier<? extends AbstractCard> cardDefinition) {
-        AbstractCard card = cardDefinition.get();
-        if (card == null) {
-            throw new IllegalArgumentException("Una definicion de carta produjo un valor null.");
-        }
-        return card;
-    }
-
-    private static final class CardCopies {
-        private final AbstractCard firstCopy;
-        private final AbstractCard secondCopy;
-
-        private CardCopies(AbstractCard firstCopy, AbstractCard secondCopy) {
-            this.firstCopy = firstCopy;
-            this.secondCopy = secondCopy;
-        }
+        return createValidatedDeck(deckCards);
     }
 }
