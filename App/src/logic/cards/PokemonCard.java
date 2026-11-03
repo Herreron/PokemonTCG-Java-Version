@@ -44,6 +44,14 @@ this.evolvesFrom = evolvesFrom;
 
     }
 
+// Constructor con tipo: usa el constructor de arriba y despues guarda el tipo.
+// Los otros dos constructores siguen dejando COLORLESS por defecto.
+public PokemonCard(String name, int cardNumber, int healthPoints, int retreatCost,
+ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom, Type type) {
+this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, phase, evolvesFrom);
+setType(type);
+    }
+
 // getters
 public int getHealthPoints() {
 return healthPoints;
@@ -126,6 +134,7 @@ return isEx ? 2 : 1;
 
     @Override
 public boolean activateEffect(Game game, Player player) {
+    // Una carta Pokemon no tiene efecto propio, por eso siempre devuelve false.
     return false;
     }
 
