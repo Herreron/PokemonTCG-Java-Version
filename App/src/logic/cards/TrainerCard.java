@@ -17,16 +17,23 @@ public class TrainerCard extends AbstractCard {
     }
 
     @Override
-    public void activateEffect(Game game, Player player) {
+    public boolean activateEffect(Game game, Player player) {
+        return activateEffect(game, player, null);
+    }
+
+    @Override
+    public boolean activateEffect(Game game, Player player, PokemonCard target) {
+        if (player == null) {
+            return false;
+        }
+
         switch (getName()) {
             case "Investigacion del Profesor":
-                // TODO: descartar la mano y robar 2 cartas
-                break;
+                return player.useProfessorResearch();
             case "Misty":
-                // TODO: adjuntar hasta 3 energias de agua a un Pokemon de agua
-                break;
+                return player.attachWaterEnergy(target, 3) > 0;
             default:
-                break;
+                return false;
         }
     }
 }

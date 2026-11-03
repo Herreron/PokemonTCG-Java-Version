@@ -10,19 +10,30 @@ public class ObjectCard extends TrainerCard {
     }
 
     @Override
-    public void activateEffect(Game game, Player player) {
+    public boolean activateEffect(Game game, Player player) {
+        if (player == null) {
+            return false;
+        }
+
         switch (getName()) {
             case "Pocion":
-                // TODO: curar 20 PS al Pokemon activo
-                break;
+                PokemonCard activePokemon = player.getActivePokemon();
+                if (activePokemon == null || activePokemon.getHealthPoints() >= activePokemon.getMaxHealthPoints()) {
+                    return false;
+                }
+                activePokemon.heal(20);
+                return true;
             case "Poke Ball":
-                // TODO: buscar 1 Pokemon basico en el mazo y ponerlo en la mano
-                break;
+                return player.searchBasicPokemonInDeck();
             case "Turbo Velocidad":
-                // TODO: reducir en 1 el costo de retirada del activo este turno
-                break;
+                return player.reduceActiveRetreatCost();
             default:
-                break;
+                return false;
         }
+    }
+
+    @Override
+    public boolean activateEffect(Game game, Player player, PokemonCard target) {
+        return activateEffect(game, player);
     }
 }

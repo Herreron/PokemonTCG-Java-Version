@@ -112,6 +112,10 @@ public class Game {
         return null;
     }
 
+    public Player getOpponentOf(Player player) {
+        return getOpponent(player);
+    }
+
     public Player getPlayerOne() {
         return playerOne;
     }

@@ -13,7 +13,7 @@ public final class PokemonCatalog {
      */
     public static AbstractCard createCardByName(String cardName) {
         if (cardName == null) {
-            throw new IllegalArgumentException("El nombre de la carta no puede ser null.");
+            return null;
         }
 
         // El patron Factory centraliza la seleccion de la clase concreta por nombre.
@@ -53,7 +53,7 @@ public final class PokemonCatalog {
             case "Articuno ex":
                 return createArticunoEx();
             default:
-                throw new IllegalArgumentException("No existe una carta Pokemon llamada: " + cardName);
+                return null;
         }
     }
 
@@ -62,65 +62,65 @@ public final class PokemonCatalog {
     public static PokemonCard createPikachu() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Mordisco", Type.ELECTRIC, 1, 20));
-        return new PokemonCard("Pikachu", 1, 60, 1, attacks, false);
+        return withType(new PokemonCard("Pikachu", 1, 60, 1, attacks, false), Type.ELECTRIC);
     }
 
     public static PokemonCard createCharmander() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Ascuas", Type.FIRE, 1, 30));
-        return new PokemonCard("Charmander", 2, 60, 1, attacks, false);
+        return withType(new PokemonCard("Charmander", 2, 60, 1, attacks, false), Type.FIRE);
     }
 
     public static PokemonCard createSquirtle() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Placaje", Type.WATER, 1, 20));
-        return new PokemonCard("Squirtle", 3, 60, 1, attacks, false);
+        return withType(new PokemonCard("Squirtle", 3, 60, 1, attacks, false), Type.WATER);
     }
 
     public static PokemonCard createJigglypuff() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Golpe", Type.COLORLESS, 1, 20));
-        return new PokemonCard("Jigglypuff", 4, 70, 1, attacks, false);
+        return withType(new PokemonCard("Jigglypuff", 4, 70, 1, attacks, false), Type.COLORLESS);
     }
 
     public static PokemonCard createMagikarp() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Chapoteo", Type.WATER, 1, 10));
-        return new PokemonCard("Magikarp", 5, 30, 1, attacks, false);
+        return withType(new PokemonCard("Magikarp", 5, 30, 1, attacks, false), Type.WATER);
     }
 
     public static PokemonCard createSnorlax() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Golpe Cuerpo", Type.COLORLESS, 3, 100));
-        return new PokemonCard("Snorlax", 6, 150, 3, attacks, false);
+        return withType(new PokemonCard("Snorlax", 6, 150, 3, attacks, false), Type.COLORLESS);
     }
 
     public static PokemonCard createMewtwoEx() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Ataque Psiquico", Type.PSYCHIC, 2, 50));
         attacks.add(new Attack("Psicorrayo", Type.PSYCHIC, 3, 150));
-        return new PokemonCard("Mewtwo ex", 7, 150, 2, attacks, true);
+        return withType(new PokemonCard("Mewtwo ex", 7, 150, 2, attacks, true), Type.PSYCHIC);
     }
 
     public static PokemonCard createZapdosEx() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Picotazo", Type.COLORLESS, 1, 30));
         attacks.add(new Attack("Tormenta Electrica", Type.ELECTRIC, 3, 100));
-        return new PokemonCard("Zapdos ex", 8, 130, 2, attacks, true);
+        return withType(new PokemonCard("Zapdos ex", 8, 130, 2, attacks, true), Type.ELECTRIC);
     }
 
     public static PokemonCard createMoltresEx() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Aleteo", Type.COLORLESS, 1, 30));
         attacks.add(new Attack("Danza Infernal", Type.FIRE, 3, 70));
-        return new PokemonCard("Moltres ex", 9, 130, 2, attacks, true);
+        return withType(new PokemonCard("Moltres ex", 9, 130, 2, attacks, true), Type.FIRE);
     }
 
     public static PokemonCard createArticunoEx() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Viento Helado", Type.WATER, 1, 30));
         attacks.add(new Attack("Ventisca", Type.WATER, 3, 100));
-        return new PokemonCard("Articuno ex", 10, 130, 2, attacks, true);
+        return withType(new PokemonCard("Articuno ex", 10, 130, 2, attacks, true), Type.WATER);
     }
 
     // ---------- Evoluciones (numeros 16 a 22, datos de las cartas reales) ----------
@@ -128,43 +128,70 @@ public final class PokemonCatalog {
     public static PokemonCard createRaichu() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Rayo", Type.ELECTRIC, 3, 140));
-        return new PokemonCard("Raichu", 16, 100, 1, attacks, false, 2, "Pikachu");
+        return withType(new PokemonCard("Raichu", 16, 100, 1, attacks, false, 2, "Pikachu"), Type.ELECTRIC);
     }
 
     public static PokemonCard createCharmeleon() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Garras de Fuego", Type.FIRE, 3, 60));
-        return new PokemonCard("Charmeleon", 17, 90, 2, attacks, false, 2, "Charmander");
+        return withType(new PokemonCard("Charmeleon", 17, 90, 2, attacks, false, 2, "Charmander"), Type.FIRE);
     }
 
     public static PokemonCard createCharizard() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Giro Fuego", Type.FIRE, 4, 150));
-        return new PokemonCard("Charizard", 18, 150, 2, attacks, false, 3, "Charmeleon");
+        return withType(new PokemonCard("Charizard", 18, 150, 2, attacks, false, 3, "Charmeleon"), Type.FIRE);
     }
 
     public static PokemonCard createWartortle() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Salpicadura", Type.WATER, 2, 40));
-        return new PokemonCard("Wartortle", 19, 80, 1, attacks, false, 2, "Squirtle");
+        return withType(new PokemonCard("Wartortle", 19, 80, 1, attacks, false, 2, "Squirtle"), Type.WATER);
     }
 
     public static PokemonCard createBlastoise() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Hidrobomba", Type.WATER, 3, 80));
-        return new PokemonCard("Blastoise", 20, 150, 3, attacks, false, 3, "Wartortle");
+        return withType(new PokemonCard("Blastoise", 20, 150, 3, attacks, false, 3, "Wartortle"), Type.WATER);
     }
 
     public static PokemonCard createWigglytuff() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Vozarron", Type.COLORLESS, 2, 60));
-        return new PokemonCard("Wigglytuff", 21, 100, 1, attacks, false, 2, "Jigglypuff");
+        return withType(new PokemonCard("Wigglytuff", 21, 100, 1, attacks, false, 2, "Jigglypuff"), Type.COLORLESS);
     }
 
     public static PokemonCard createGyarados() {
         ArrayList<Attack> attacks = new ArrayList<>();
         attacks.add(new Attack("Hiperrayo", Type.WATER, 4, 100));
-        return new PokemonCard("Gyarados", 22, 150, 4, attacks, false, 2, "Magikarp");
+        return withType(new PokemonCard("Gyarados", 22, 150, 4, attacks, false, 2, "Magikarp"), Type.WATER);
+    }
+
+    private static PokemonCard withType(PokemonCard pokemon, Type type) {
+        pokemon.setType(type);
+        return pokemon;
+    }
+
+    public static ArrayList<PokemonCard> createAllPokemonCards() {
+        ArrayList<PokemonCard> cards = new ArrayList<>();
+        cards.add(createPikachu());
+        cards.add(createRaichu());
+        cards.add(createCharmander());
+        cards.add(createCharmeleon());
+        cards.add(createCharizard());
+        cards.add(createSquirtle());
+        cards.add(createWartortle());
+        cards.add(createBlastoise());
+        cards.add(createJigglypuff());
+        cards.add(createWigglytuff());
+        cards.add(createMagikarp());
+        cards.add(createGyarados());
+        cards.add(createSnorlax());
+        cards.add(createMewtwoEx());
+        cards.add(createZapdosEx());
+        cards.add(createMoltresEx());
+        cards.add(createArticunoEx());
+        return cards;
     }
 
     // ---------- Lineas de evolucion ----------

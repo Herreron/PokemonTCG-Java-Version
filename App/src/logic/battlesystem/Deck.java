@@ -62,6 +62,17 @@ public class Deck {
         return cardsDeck.remove(0);
     }
 
+    public PokemonCard drawBasicPokemon() {
+        for (int i = 0; i < cardsDeck.size(); i++) {
+            AbstractCard card = cardsDeck.get(i);
+            if (card instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
+                cardsDeck.remove(i);
+                return pokemon;
+            }
+        }
+        return null;
+    }
+
 
     /**
      * Valida el mazo segun los requisitos del RF4:

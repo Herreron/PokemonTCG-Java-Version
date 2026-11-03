@@ -26,6 +26,18 @@ public final class ObjectCatalog {
         cards.add(createSpeedBoost());
         return cards;
     }
-}
 
+    public static ObjectCard createCardByName(String cardName) {
+        if ("Pocion".equals(cardName)) {
+            return createPotion();
+        }
+        if ("Poke Ball".equals(cardName)) {
+            return createPokeBall();
+        }
+        if ("Turbo Velocidad".equals(cardName)) {
+            return createSpeedBoost();
+        }
+        return null;
+    }
+}
 

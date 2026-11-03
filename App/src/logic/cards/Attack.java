@@ -10,8 +10,8 @@ public class Attack {
     public Attack(String name, Type energyType, int energyCost, int baseDamage) {
         this.name = name;
         this.energyType = energyType;
-        this.energyCost = energyCost;
-        this.baseDamage = baseDamage;
+        this.energyCost = Math.max(0, energyCost);
+        this.baseDamage = Math.max(0, baseDamage);
     }
 
     public String getName() {

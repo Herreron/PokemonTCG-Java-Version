@@ -1,32 +1,34 @@
 package logic.cards;
 
-import logic.battlesystem.Game;
-import logic.battlesystem.Player;
+import java.util.ArrayList;
 
-public class TrainerCatalog extends AbstractCard {
+public final class TrainerCatalog {
 
-    private final String trainerType; // "Soporte" u "Objeto"
-
-    public TrainerCatalog(String name, int cardNumber, String trainerType) {
-        super(name, cardNumber);
-        this.trainerType = trainerType;
+    private TrainerCatalog() {
     }
 
-    public String getTrainerType() {
-        return trainerType;
+    public static TrainerCard createProfessorResearch() {
+        return new TrainerCard("Investigacion del Profesor", 14, "Soporte");
     }
 
-    @Override
-    public void activateEffect(Game game, Player player) {
-        switch (getName()) {
-            case "Investigacion del Profesor":
-                // TODO: descartar la mano y robar 2 cartas
-                break;
-            case "Misty":
-                // TODO: adjuntar hasta 3 energias de agua a un Pokemon de agua
-                break;
-            default:
-                break;
+    public static TrainerCard createMisty() {
+        return new TrainerCard("Misty", 15, "Soporte");
+    }
+
+    public static ArrayList<TrainerCard> createAllTrainerCards() {
+        ArrayList<TrainerCard> cards = new ArrayList<>();
+        cards.add(createProfessorResearch());
+        cards.add(createMisty());
+        return cards;
+    }
+
+    public static TrainerCard createCardByName(String cardName) {
+        if ("Investigacion del Profesor".equals(cardName)) {
+            return createProfessorResearch();
         }
+        if ("Misty".equals(cardName)) {
+            return createMisty();
+        }
+        return null;
     }
 }

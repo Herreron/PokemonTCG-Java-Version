@@ -4,7 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import logic.cards.AbstractCard;
+import logic.cards.Attack;
+import logic.cards.ObjectCatalog;
 import logic.cards.PokemonCard;
+import logic.cards.PokemonCatalog;
+import logic.cards.TrainerCard;
+import logic.cards.TrainerCatalog;
+import logic.cards.Type;
 
 public class ConsoleUI {
 
@@ -107,12 +113,18 @@ public class ConsoleUI {
         }
     }
 
-    // El catálogo visible se expresa como nombres; DeckFactory resuelve cada nombre con PokemonCatalog.
-    private List<String> getAvailableCardNames() {
+    // Los catálogos se exponen como nombres; DeckFactory crea cada carta con su fábrica correspondiente.
+    public List<String> getAvailableCardNames() {
         ArrayList<String> cardNames = new ArrayList<>();
-        cardNames.add("Charmander");
-        cardNames.add("Charmeleon");
-        cardNames.add("Charizard");
+        for (PokemonCard card : PokemonCatalog.createAllPokemonCards()) {
+            cardNames.add(card.getName());
+        }
+        for (AbstractCard card : ObjectCatalog.createAllObjectCards()) {
+            cardNames.add(card.getName());
+        }
+        for (TrainerCard card : TrainerCatalog.createAllTrainerCards()) {
+            cardNames.add(card.getName());
+        }
         return cardNames;
     }
 
@@ -222,7 +234,7 @@ public class ConsoleUI {
                 return false;
             }
 
-            if (executeAction(action, currentPlayer)) {
+            if (executeAction(action, game, currentPlayer)) {
                 return true;
             }
             game.checkWinner();
@@ -234,23 +246,23 @@ public class ConsoleUI {
         System.out.println("\n-----------------------------------");
         System.out.println("Acciones disponibles:");
         System.out.println("1. Adjuntar energia de zona");
-        System.out.println("2. Jugar carta de entrenador (pendiente)");
+        System.out.println("2. Jugar carta de entrenador");
         System.out.println("3. Colocar Pokemon basico en la banca");
         System.out.println("4. Retirar Pokemon activo");
-        System.out.println("5. Atacar (pendiente de integrar Attack)");
+        System.out.println("5. Atacar");
         System.out.println("6. Evolucionar Pokemon");
         System.out.println("7. Pasar turno");
         System.out.println("-----------------------------------");
     }
 
     // Traduce la opción numérica a una acción del jugador sin concentrar el detalle del menú en el ciclo.
-    private boolean executeAction(int action, Player player) {
+    private boolean executeAction(int action, Game game, Player player) {
         switch (action) {
             case 1:
                 attachEnergy(player);
                 return false;
             case 2:
-                System.out.println("Las cartas de entrenador aun no estan implementadas.");
+                playTrainerCard(game, player);
                 return false;
             case 3:
                 placeOnBench(player);
@@ -259,7 +271,7 @@ public class ConsoleUI {
                 retreat(player);
                 return false;
             case 5:
-                System.out.println("El ataque estara disponible cuando se integre la clase Attack.");
+                attack(game, player);
                 return false;
             case 6:
                 evolve(player);
@@ -270,6 +282,7 @@ public class ConsoleUI {
                 System.out.println("La opcion de accion no es valida.");
                 return false;
         }
+
     }
 
     private void changeTurn(Game game) {
@@ -307,6 +320,96 @@ public class ConsoleUI {
             System.out.println("Energia adjuntada.");
         } else {
             System.out.println("No se pudo adjuntar energia.");
+        }
+    }
+
+    private void playTrainerCard(Game game, Player player) {
+        ArrayList<TrainerCard> trainerCards = new ArrayList<>();
+        for (AbstractCard card : player.getHand().getCards()) {
+            if (card instanceof TrainerCard trainerCard) {
+                trainerCards.add(trainerCard);
+            }
+        }
+        if (trainerCards.isEmpty()) {
+            System.out.println("No tienes cartas de entrenador en la mano.");
+            return;
+        }
+
+        System.out.println("\nCartas de entrenador:");
+        for (int i = 0; i < trainerCards.size(); i++) {
+            System.out.println((i + 1) + ". " + trainerCards.get(i).getName()
+                    + " (" + trainerCards.get(i).getTrainerType() + ")");
+        }
+        int choice = readChoice("Elige la carta: ", 1, trainerCards.size());
+        if (!running) {
+            return;
+        }
+
+        TrainerCard card = trainerCards.get(choice - 1);
+        PokemonCard target = null;
+        if ("Misty".equals(card.getName())) {
+            ArrayList<PokemonCard> waterPokemon = new ArrayList<>();
+            for (PokemonCard pokemon : getPokemonInPlay(player)) {
+                if (pokemon.getType() == Type.WATER) {
+                    waterPokemon.add(pokemon);
+                }
+            }
+            if (waterPokemon.isEmpty()) {
+                System.out.println("No tienes un Pokemon de agua en juego para usar Misty.");
+                return;
+            }
+            System.out.println("Elige el Pokemon de agua que recibira energia:");
+            for (int i = 0; i < waterPokemon.size(); i++) {
+                System.out.println((i + 1) + ". " + waterPokemon.get(i));
+            }
+            int targetChoice = readChoice("Seleccion: ", 1, waterPokemon.size());
+            if (!running) {
+                return;
+            }
+            target = waterPokemon.get(targetChoice - 1);
+        }
+
+        if (player.playTrainerCard(card, game, target)) {
+            System.out.println(card.getName() + " se jugo correctamente.");
+        } else if ("Soporte".equals(card.getTrainerType()) && player.hasPlayedSupport()) {
+            System.out.println("Ya jugaste una carta de soporte durante este turno.");
+        } else {
+            System.out.println("No se pudo activar el efecto de " + card.getName() + ".");
+        }
+    }
+
+    private void attack(Game game, Player player) {
+        PokemonCard activePokemon = player.getActivePokemon();
+        if (activePokemon == null) {
+            System.out.println("No tienes un Pokemon activo.");
+            return;
+        }
+        if (game.getTurnNumber() == 1) {
+            System.out.println("No se puede atacar durante el primer turno.");
+            return;
+        }
+
+        ArrayList<Attack> attacks = activePokemon.getAttacks();
+        if (attacks.isEmpty()) {
+            System.out.println("El Pokemon activo no tiene ataques disponibles.");
+            return;
+        }
+
+        System.out.println("\nAtaques de " + activePokemon.getName() + ":");
+        for (int i = 0; i < attacks.size(); i++) {
+            System.out.println((i + 1) + ". " + attacks.get(i));
+        }
+        int choice = readChoice("Elige el ataque: ", 1, attacks.size());
+        if (!running) {
+            return;
+        }
+
+        Player opponent = game.getOpponentOf(player);
+        if (player.attackOpponent(opponent, attacks.get(choice - 1))) {
+            System.out.println(activePokemon.getName() + " uso "
+                    + attacks.get(choice - 1).getName() + ".");
+        } else {
+            System.out.println("No se pudo atacar. Verifica energia y si ya atacaste este turno.");
         }
     }
 
