@@ -3,46 +3,35 @@ package logic.cards;
 public class Attack {
 
     private final String name;
+    private final Type energyType;
     private final int energyCost;
-    private final int damage;
-    private final String energyType;
+    private final int baseDamage;
 
-    public Attack(String name, int energyCost, int damage, String energyType) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("El ataque debe tener nombre.");
-        }
-        if (energyCost < 0) {
-            throw new IllegalArgumentException("El costo de energia no puede ser negativo.");
-        }
-        if (damage < 0) {
-            throw new IllegalArgumentException("El dano no puede ser negativo.");
-        }
-        if (energyType == null || energyType.isBlank()) {
-            throw new IllegalArgumentException("El tipo de energia no puede ser nulo o vacío.");
-        }
+    public Attack(String name, Type energyType, int energyCost, int baseDamage) {
         this.name = name;
-        this.energyCost = energyCost;
-        this.damage = damage;
         this.energyType = energyType;
+        this.energyCost = energyCost;
+        this.baseDamage = baseDamage;
     }
 
     public String getName() {
         return name;
     }
 
+    public Type getEnergyType() {
+        return energyType;
+    }
+
     public int getEnergyCost() {
         return energyCost;
     }
 
-    public int getDamage() {
-        return damage;
-    }
-    public String getEnergyType() {
-        return energyType;
+    public int getBaseDamage() {
+        return baseDamage;
     }
 
     @Override
     public String toString() {
-        return name + " (" + energyCost + " " + energyType + "): " + damage + " dano";
+        return name + " (" + energyCost + " " + energyType + "): " + baseDamage + " dano";
     }
 }

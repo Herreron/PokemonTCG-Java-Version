@@ -1,6 +1,9 @@
 package logic.cards;
 
-public abstract class TrainerCard extends AbstractCard {
+import logic.battlesystem.Game;
+import logic.battlesystem.Player;
+
+public class TrainerCard extends AbstractCard {
 
     private final String trainerType; // "Soporte" u "Objeto"
 
@@ -11,5 +14,19 @@ public abstract class TrainerCard extends AbstractCard {
 
     public String getTrainerType() {
         return trainerType;
+    }
+
+    @Override
+    public void activateEffect(Game game, Player player) {
+        switch (getName()) {
+            case "Investigacion del Profesor":
+                // TODO: descartar la mano y robar 2 cartas
+                break;
+            case "Misty":
+                // TODO: adjuntar hasta 3 energias de agua a un Pokemon de agua
+                break;
+            default:
+                break;
+        }
     }
 }
