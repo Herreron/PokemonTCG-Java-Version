@@ -1,6 +1,6 @@
 package logic.cards;
 
-public abstract class AbstractCard {
+public abstract class AbstractCard implements Effect {
 
     private String name;
     private int cardNumber;
