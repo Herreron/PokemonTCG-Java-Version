@@ -4,8 +4,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import logic.cards.AbstractCard;
+import logic.cards.ObjectCatalog;
+import logic.cards.ObjectCard;
 import logic.cards.PokemonCard;
 import logic.cards.PokemonCatalog;
+import logic.cards.TrainerCard;
+import logic.cards.TrainerCatalog;
 
 public final class DeckFactory {
 
@@ -44,12 +48,11 @@ public final class DeckFactory {
             }
             processedNames.add(cardName);
 
-            if (!isCardAvailable(cardName)) {
+            AbstractCard firstCopy = createCardByName(cardName);
+            AbstractCard secondCopy = createCardByName(cardName);
+            if (firstCopy == null || secondCopy == null) {
                 return null;
             }
-
-            AbstractCard firstCopy = PokemonCatalog.createCardByName(cardName);
-            AbstractCard secondCopy = PokemonCatalog.createCardByName(cardName);
             
             // Garantiza que el catálogo creó dos objetos diferentes en memoria
             if (firstCopy == secondCopy) {
@@ -92,14 +95,16 @@ public final class DeckFactory {
         return createValidatedDeck(deckCards);
     }
 
-    private static boolean isCardAvailable(String cardName) {
-        switch (cardName) {
-            case "Charmander":
-            case "Charmeleon":
-            case "Charizard":
-                return true;
-            default:
-                return false;
+    private static AbstractCard createCardByName(String cardName) {
+        AbstractCard card = PokemonCatalog.createCardByName(cardName);
+        if (card != null) {
+            return card;
         }
+        ObjectCard objectCard = ObjectCatalog.createCardByName(cardName);
+        if (objectCard != null) {
+            return objectCard;
+        }
+        TrainerCard trainerCard = TrainerCatalog.createCardByName(cardName);
+        return trainerCard;
     }
 }

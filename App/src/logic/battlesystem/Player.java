@@ -2,7 +2,10 @@ package logic.battlesystem;
 
 import java.util.ArrayList;
 import logic.cards.AbstractCard;
+import logic.cards.Attack;
 import logic.cards.PokemonCard;
+import logic.cards.TrainerCard;
+import logic.cards.Type;
 
 public class Player {
 
@@ -15,6 +18,8 @@ public class Player {
     private byte availableEnergy;
     private boolean hasAttacked;
     private boolean canAttackThisTurn;
+    private boolean hasPlayedSupport;
+    private boolean activeRetreatCostReduced;
 
     public Player(String name, Deck deck, Hand hand, ArrayList<PokemonCard> bank, PokemonCard activePokemon,
             byte prizePoints, byte availableEnergy) {
@@ -108,6 +113,8 @@ public class Player {
         availableEnergy = 1;
         hasAttacked = false;
         canAttackThisTurn = canAttack;
+        hasPlayedSupport = false;
+        activeRetreatCostReduced = false;
     }
 
     public boolean drawCard() {
@@ -153,14 +160,15 @@ public class Player {
     }
 
     public boolean retreatActive(PokemonCard replacement) {
+        int retreatCost = getActiveRetreatCost();
         if (activePokemon == null || bank == null || replacement == null
                 || !bank.contains(replacement)
-                || activePokemon.getAttachedEnergy() < activePokemon.getRetreatCost()) {
+                || activePokemon.getAttachedEnergy() < retreatCost) {
             return false;
         }
 
         activePokemon.setAttachedEnergy(
-                activePokemon.getAttachedEnergy() - activePokemon.getRetreatCost());
+                activePokemon.getAttachedEnergy() - retreatCost);
         int replacementIndex = bank.indexOf(replacement);
         bank.set(replacementIndex, activePokemon);
         activePokemon = replacement;
@@ -168,6 +176,11 @@ public class Player {
     }
 
     public boolean attackOpponent(Player opponent, int baseDamage, int energyCost) {
+        Type attackType = activePokemon == null ? null : activePokemon.getType();
+        return performAttack(opponent, baseDamage, energyCost, attackType);
+    }
+
+    private boolean performAttack(Player opponent, int baseDamage, int energyCost, Type attackType) {
         if (opponent == null || opponent == this || baseDamage < 0 || energyCost < 0
                 || activePokemon == null || opponent.activePokemon == null
                 || !canAttackThisTurn || hasAttacked
@@ -176,18 +189,102 @@ public class Player {
         }
 
         PokemonCard defendingPokemon = opponent.activePokemon;
-        defendingPokemon.receiveDamage(baseDamage);
+        defendingPokemon.receiveDamage(baseDamage, attackType);
         hasAttacked = true;
 
-        if (defendingPokemon.isDefeated()) {
-            awardPrizePoints(defendingPokemon.calculatePrizePoints());
-            if (opponent.bank == null || opponent.bank.isEmpty()) {
-                opponent.activePokemon = null;
-            } else {
-                opponent.activePokemon = opponent.bank.remove(0);
-            }
+        opponent.handleActivePokemonDefeat();
+        return true;
+    }
+
+    public boolean attackOpponent(Player opponent, Attack attack) {
+        if (attack == null || activePokemon == null
+                || !activePokemon.getAttacks().contains(attack)) {
+            return false;
+        }
+        return performAttack(
+                opponent, attack.getBaseDamage(), attack.getEnergyCost(), attack.getEnergyType());
+    }
+
+    private void handleActivePokemonDefeat() {
+        if (activePokemon == null || !activePokemon.isDefeated()) {
+            return;
+        }
+        awardPrizePoints(activePokemon.calculatePrizePoints());
+        if (bank == null || bank.isEmpty()) {
+            activePokemon = null;
+        } else {
+            activePokemon = bank.remove(0);
+        }
+    }
+
+    public boolean playTrainerCard(TrainerCard card, Game game, PokemonCard target) {
+        if (card == null || hand == null || !hand.getCards().contains(card)) {
+            return false;
+        }
+        if ("Soporte".equals(card.getTrainerType()) && hasPlayedSupport) {
+            return false;
+        }
+
+        hand.removeCard(card);
+        boolean activated = card.activateEffect(game, this, target);
+        if (!activated) {
+            hand.addCard(card);
+            return false;
+        }
+        if ("Soporte".equals(card.getTrainerType())) {
+            hasPlayedSupport = true;
         }
         return true;
+    }
+
+    public boolean hasPlayedSupport() {
+        return hasPlayedSupport;
+    }
+
+    public boolean useProfessorResearch() {
+        if (hand == null) {
+            return false;
+        }
+        hand.discardAll();
+        drawCard();
+        drawCard();
+        return true;
+    }
+
+    public int attachWaterEnergy(PokemonCard target, int maximum) {
+        if (target == null || maximum <= 0 || !isInPlay(target) || target.getType() != Type.WATER) {
+            return 0;
+        }
+        target.setAttachedEnergy(target.getAttachedEnergy() + maximum);
+        return maximum;
+    }
+
+    public boolean searchBasicPokemonInDeck() {
+        if (deck == null || hand == null) {
+            return false;
+        }
+        PokemonCard pokemon = deck.drawBasicPokemon();
+        if (pokemon == null) {
+            return false;
+        }
+        hand.addCard(pokemon);
+        return true;
+    }
+
+    public boolean reduceActiveRetreatCost() {
+        if (activePokemon == null || activeRetreatCostReduced) {
+            return false;
+        }
+        activeRetreatCostReduced = true;
+        return true;
+    }
+
+    public int getActiveRetreatCost() {
+        if (activePokemon == null) {
+            return 0;
+        }
+        int reduction = activeRetreatCostReduced ? 1 : 0;
+        return Math.max(0, activePokemon.getRetreatCost() - reduction);
     }
 
     private boolean isInPlay(PokemonCard pokemon) {
@@ -257,6 +354,7 @@ public class Player {
 
     private boolean canEvolve(PokemonCard currentPokemon, PokemonCard evolution) {
         return currentPokemon != null
+                && evolution.getEvolvesFrom() != null
                 && evolution.getPhase() == currentPokemon.getPhase() + 1
                 && evolution.getEvolvesFrom().equals(currentPokemon.getName());
     }
