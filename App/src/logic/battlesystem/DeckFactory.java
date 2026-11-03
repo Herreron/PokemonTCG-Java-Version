@@ -11,11 +11,6 @@ import java.util.function.Supplier;
 //importes de clases
 import logic.cards.AbstractCard;
 import logic.cards.PokemonCard;
-package logic.battlesystem;
-
-import java.util.ArrayList;
-import java.util.List;
-import logic.cards.AbstractCard;
 
 public final class DeckFactory {
 

@@ -2,6 +2,8 @@
 package logic.cards;
 //funciones de java
 import java.util.ArrayList;
+import logic.battlesystem.Game;
+import logic.battlesystem.Player;
 
 public class PokemonCard extends AbstractCard {
 
@@ -117,6 +119,11 @@ return healthPoints <= 0;
 
 public int calculatePrizePoints() {
 return isEx ? 2 : 1;
+    }
+
+    @Override
+public void activateEffect(Game game, Player player) {
+// A Pokemon card has no effect of its own
     }
 
     @Override
