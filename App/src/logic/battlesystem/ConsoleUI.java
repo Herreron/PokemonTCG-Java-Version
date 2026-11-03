@@ -57,6 +57,11 @@ public class ConsoleUI {
         }
 
         String secondName = readName("Nombre del jugador 2: ");
+        // Los dos jugadores no pueden llamarse igual, para no confundir los turnos.
+        while (running && secondName.equalsIgnoreCase(firstName)) {
+            System.out.println("Ese nombre ya lo usa el jugador 1. Elige otro nombre.");
+            secondName = readName("Nombre del jugador 2: ");
+        }
         if (!running) {
             return;
         }
@@ -237,6 +242,10 @@ public class ConsoleUI {
             if (executeAction(action, game, currentPlayer)) {
                 return true;
             }
+            // Se espera ENTER para leer el aviso antes de que se vuelva a dibujar el campo.
+            if (running) {
+                waitForEnter();
+            }
             game.checkWinner();
         }
         return false;
@@ -301,8 +310,12 @@ public class ConsoleUI {
     // Presenta solo los Pokémon propios para que el usuario elija dónde adjuntar la energía.
     private void attachEnergy(Player player) {
         ArrayList<PokemonCard> pokemonInPlay = getPokemonInPlay(player);
-        if (player.getAvailableEnergy() <= 0 || pokemonInPlay.isEmpty()) {
-            System.out.println("No hay energia disponible o Pokemon en juego.");
+        if (pokemonInPlay.isEmpty()) {
+            System.out.println("No tienes Pokemon en juego para adjuntar energia.");
+            return;
+        }
+        if (player.getAvailableEnergy() <= 0) {
+            System.out.println("No tienes energia disponible: solo recibes 1 por turno y ya la usaste.");
             return;
         }
 
@@ -388,6 +401,10 @@ public class ConsoleUI {
             System.out.println("No se puede atacar durante el primer turno.");
             return;
         }
+        if (player.hasAttacked()) {
+            System.out.println("Ya atacaste en este turno: solo se puede atacar una vez.");
+            return;
+        }
 
         ArrayList<Attack> attacks = activePokemon.getAttacks();
         if (attacks.isEmpty()) {
@@ -404,19 +421,45 @@ public class ConsoleUI {
             return;
         }
 
+        Attack chosenAttack = attacks.get(choice - 1);
+        int missingEnergy = chosenAttack.getEnergyCost() - activePokemon.getAttachedEnergy();
+        if (missingEnergy > 0) {
+            System.out.println("Energia insuficiente: " + chosenAttack.getName() + " cuesta "
+                    + chosenAttack.getEnergyCost() + " y " + activePokemon.getName() + " tiene "
+                    + activePokemon.getAttachedEnergy() + ". Te faltan " + missingEnergy + ".");
+            return;
+        }
+
         Player opponent = game.getOpponentOf(player);
-        if (player.attackOpponent(opponent, attacks.get(choice - 1))) {
-            System.out.println(activePokemon.getName() + " uso "
-                    + attacks.get(choice - 1).getName() + ".");
+        PokemonCard target = opponent.getActivePokemon();
+        if (target == null) {
+            System.out.println("El rival no tiene un Pokemon activo.");
+            return;
+        }
+
+        int healthBefore = target.getHealthPoints();
+        if (player.attackOpponent(opponent, chosenAttack)) {
+            System.out.println(activePokemon.getName() + " uso " + chosenAttack.getName()
+                    + " y causo " + (healthBefore - target.getHealthPoints()) + " de dano a "
+                    + target.getName() + " (" + target.getHealthPoints() + "/"
+                    + target.getMaxHealthPoints() + " PS).");
+            if (target.isDefeated()) {
+                System.out.println(target.getName() + " fue derrotado. Ganas "
+                        + target.calculatePrizePoints() + " punto(s) de premio.");
+            }
         } else {
-            System.out.println("No se pudo atacar. Verifica energia y si ya atacaste este turno.");
+            System.out.println("No se pudo atacar.");
         }
     }
 
     private void placeOnBench(Player player) {
         ArrayList<PokemonCard> basicPokemon = player.getHand().getBasicPokemonCards();
-        if (basicPokemon.isEmpty() || player.getBank().size() >= 2) {
-            System.out.println("No hay Pokemon basicos disponibles o la banca esta llena.");
+        if (basicPokemon.isEmpty()) {
+            System.out.println("No tienes Pokemon basicos en la mano.");
+            return;
+        }
+        if (player.getBank().size() >= 2) {
+            System.out.println("Tu banca esta llena: el maximo es 2 Pokemon.");
             return;
         }
 
@@ -439,7 +482,14 @@ public class ConsoleUI {
 
     private void retreat(Player player) {
         if (player.getBank().isEmpty()) {
-            System.out.println("No hay Pokemon en la banca.");
+            System.out.println("No hay Pokemon en la banca para reemplazar al activo.");
+            return;
+        }
+        PokemonCard activePokemon = player.getActivePokemon();
+        if (activePokemon != null && activePokemon.getAttachedEnergy() < player.getActiveRetreatCost()) {
+            System.out.println("No puedes retirar a " + activePokemon.getName() + ": cuesta "
+                    + player.getActiveRetreatCost() + " energia y tiene "
+                    + activePokemon.getAttachedEnergy() + " adjunta.");
             return;
         }
 
@@ -588,6 +638,16 @@ public class ConsoleUI {
             System.out.println("Elige un numero entre " + minimum + " y " + maximum + ".");
         }
         return minimum;
+    }
+
+    // Deja leer el resultado de una accion antes de volver a mostrar el campo.
+    private void waitForEnter() {
+        System.out.println("\nPresiona ENTER para continuar.");
+        if (scanner.hasNextLine()) {
+            scanner.nextLine();
+        } else {
+            running = false;
+        }
     }
 
     private void pauseAndClear(String message) {
