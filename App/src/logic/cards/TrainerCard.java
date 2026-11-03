@@ -1,11 +1,11 @@
 package logic.cards;
 
-public class TrainerCard extends AbstractCard {
+public abstract class TrainerCard extends AbstractCard {
 
-    private final String trainerType;
+    private final String trainerType; // "Soporte" u "Objeto"
 
-    public TrainerCard(String name, String trainerType) {
-        super(name);
+    public TrainerCard(String name, int cardNumber, String trainerType) {
+        super(name, cardNumber);
         this.trainerType = trainerType;
     }
 
