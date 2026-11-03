@@ -1,6 +1,5 @@
 package logic.battlesystem;
 
-import java.util.Objects;
 import java.util.Random;
 
 public class Game {
@@ -13,76 +12,77 @@ public class Game {
     private int turnNumber;
     private boolean finished;
 
-    public Game(Player playerOne, Player playerTwo) {
-        this(playerOne, playerTwo, new Random());
+    public Game() {
+        this(null, null);
     }
 
-    Game(Player playerOne, Player playerTwo, Random random) {
-        this.playerOne = Objects.requireNonNull(playerOne, "El primer jugador es obligatorio.");
-        this.playerTwo = Objects.requireNonNull(playerTwo, "El segundo jugador es obligatorio.");
-        if (playerOne == playerTwo) {
-            throw new IllegalArgumentException("La partida requiere dos jugadores distintos.");
-        }
-        this.random = Objects.requireNonNull(random, "La fuente aleatoria es obligatoria.");
+    public Game(Player playerOne, Player playerTwo) {
+        this.playerOne = playerOne;
+        this.playerTwo = playerTwo;
+        this.random = new Random();
+    }
+
+    public void start() {
+        System.out.println("Nueva partida iniciada.");
     }
 
     public Player flipCoinToStart() {
+        if (playerOne == null || playerTwo == null) {
+            return null;
+        }
         return random.nextBoolean() ? playerOne : playerTwo;
     }
 
-    public void prepareInitialHands() {
-        validatePlayerDeck(playerOne);
-        validatePlayerDeck(playerTwo);
-        if (playerOne.getHand() == null || playerTwo.getHand() == null) {
-            throw new IllegalStateException("Cada jugador debe tener una mano inicial.");
+    public boolean prepareInitialHands() {
+        if (!hasValidDeck(playerOne) || !hasValidDeck(playerTwo)
+                || playerOne.getHand() == null || playerTwo.getHand() == null) {
+            return false;
         }
-        dealInitialHand(playerOne);
-        dealInitialHand(playerTwo);
+
+        return dealInitialHand(playerOne) && dealInitialHand(playerTwo);
     }
 
-    private void validatePlayerDeck(Player player) {
-        if (player.getDeck() == null || !player.getDeck().validateDeck()) {
-            throw new IllegalStateException(
-                    "El mazo de " + player.getName()
-                            + " debe tener 20 cartas, al menos 6 Pokemon basicos y maximo 2 copias por carta.");
-        }
+    private boolean hasValidDeck(Player player) {
+        return player != null && player.getDeck() != null && player.getDeck().validateDeck();
     }
 
-    private void dealInitialHand(Player player) {
+    private boolean dealInitialHand(Player player) {
         player.getHand().getCards().addAll(player.getDeck().dealInitialHand());
-        if (!player.getHand().hasBasicPokemon()) {
-            throw new IllegalStateException(
-                    "No se pudo repartir un Pokemon basico a " + player.getName() + ".");
-        }
+        return player.getHand().hasBasicPokemon();
     }
 
     public boolean startTurn() {
-        if (finished || checkWinner()) {
+        if (finished || checkWinner() || currentPlayer == null) {
             return false;
-        }
-        if (currentPlayer == null) {
-            throw new IllegalStateException("Debes definir el jugador inicial antes de iniciar el turno.");
         }
 
         turnNumber++;
         currentPlayer.prepareTurn(turnNumber > 1);
-        if (!currentPlayer.drawCard()) {
-            winner = getOpponent(currentPlayer);
-            finished = true;
-            return false;
+        if (currentPlayer.drawCard()) {
+            return true;
         }
-        return true;
+
+        winner = getOpponent(currentPlayer);
+        finished = winner != null;
+        return false;
     }
 
     public void endTurn() {
         if (!finished) {
-            currentPlayer = getOpponent(currentPlayer);
+            Player nextPlayer = getOpponent(currentPlayer);
+            if (nextPlayer != null) {
+                currentPlayer = nextPlayer;
+            }
         }
     }
 
     public boolean checkWinner() {
         if (finished) {
             return true;
+        }
+
+        if (playerOne == null || playerTwo == null) {
+            return false;
         }
 
         if (playerOne.getPrizePoints() >= 3 || !hasPokemonInPlay(playerTwo)) {
@@ -98,8 +98,8 @@ public class Game {
     }
 
     private boolean hasPokemonInPlay(Player player) {
-        return player.getActivePokemon() != null
-                || (player.getBank() != null && !player.getBank().isEmpty());
+        return player != null && (player.getActivePokemon() != null
+                || (player.getBank() != null && !player.getBank().isEmpty()));
     }
 
     private Player getOpponent(Player player) {
@@ -109,7 +109,7 @@ public class Game {
         if (player == playerTwo) {
             return playerOne;
         }
-        throw new IllegalArgumentException("El jugador no pertenece a esta partida.");
+        return null;
     }
 
     public Player getPlayerOne() {
@@ -124,11 +124,12 @@ public class Game {
         return currentPlayer;
     }
 
-    public void setCurrentPlayer(Player currentPlayer) {
+    public boolean setCurrentPlayer(Player currentPlayer) {
         if (currentPlayer != playerOne && currentPlayer != playerTwo) {
-            throw new IllegalArgumentException("El jugador inicial debe pertenecer a esta partida.");
+            return false;
         }
         this.currentPlayer = currentPlayer;
+        return true;
     }
 
     public Player getWinner() {

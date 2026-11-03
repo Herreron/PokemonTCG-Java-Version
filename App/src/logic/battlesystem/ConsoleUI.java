@@ -8,7 +8,6 @@ import logic.cards.PokemonCard;
 
 public class ConsoleUI {
 
-
     private final Scanner scanner;
     private boolean running;
 
@@ -16,12 +15,11 @@ public class ConsoleUI {
         scanner = new Scanner(System.in);
     }
 
-    // Ejecuta el menú principal y mantiene la aplicación activa hasta que se solicite salir.
+    // Menú principal
     public void run() {
         running = true;
         clearConsole();
 
-        // menu principal
         while (running) {
             showMainMenu();
             int choice = readChoice("Selecciona una opcion: ", 0, 1);
@@ -39,14 +37,12 @@ public class ConsoleUI {
 
     // Mantiene el menú de inicio separado del flujo de la partida.
     private void showMainMenu() {
-        System.out.println("===================================");
         System.out.println("       POKEMON TCG POCKET Java Version");
         System.out.println("1. Iniciar partida rapida");
         System.out.println("0. Salir");
         System.out.println("-----------------------------------");
     }
 
-    // Coordina la creación de jugadores, mazos y la preparación privada de cada mano.
     private void startQuickMatch() {
         // Se piden ambos nombres antes de crear jugadores o mazos.
         String firstName = readName("Nombre del jugador 1: ");
@@ -59,47 +55,55 @@ public class ConsoleUI {
             return;
         }
 
-        try {
-            // Cada jugador recibe un mazo distinto, construido a partir del catálogo disponible.
-            Deck firstDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
-            Deck secondDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
-            Player firstPlayer = createPlayer(firstName, firstDeck);
-            Player secondPlayer = createPlayer(secondName, secondDeck);
-            Game game = new Game(firstPlayer, secondPlayer);
+        // Creación clásica: la fábrica devuelve un Deck directamente, o null si falla.
+        Deck firstDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
+        Deck secondDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
+        
+        if (firstDeck == null || secondDeck == null) {
+            System.out.println(
+                    "No se pudo iniciar: el catalogo necesita mas cartas para crear mazos validos.");
+            return;
+        }
 
-            game.prepareInitialHands();
+        Player firstPlayer = createPlayer(firstName, firstDeck);
+        Player secondPlayer = createPlayer(secondName, secondDeck);
+        
+        Game game = new Game(firstPlayer, secondPlayer);
+        if (!game.prepareInitialHands()) {
+            System.out.println("No se pudieron repartir las manos iniciales.");
+            return;
+        }
 
-            // La preparación se hace por separado y se limpia la consola entre jugadores.
-            setupInitialField(firstPlayer);
-            if (!running) {
-                return;
-            }
+        // La preparación se hace por separado y se limpia la consola entre jugadores.
+        setupInitialField(firstPlayer);
+        if (!running) {
+            return;
+        }
 
-            pauseAndClear("Preparacion del jugador 1 terminada. Entrega la consola al jugador 2 y presiona ENTER.");
-            if (!running) {
-                return;
-            }
+        pauseAndClear("Preparacion del jugador 1 terminada. Entrega la consola al jugador 2 y presiona ENTER.");
+        if (!running) {
+            return;
+        }
 
-            setupInitialField(secondPlayer);
-            if (!running) {
-                return;
-            }
+        setupInitialField(secondPlayer);
+        if (!running) {
+            return;
+        }
 
-            pauseAndClear("Preparacion terminada. Presiona ENTER para iniciar el duelo.");
-            if (!running) {
-                return;
-            }
+        pauseAndClear("Preparacion terminada. Presiona ENTER para iniciar el duelo.");
+        if (!running) {
+            return;
+        }
 
-            Player firstTurnPlayer = game.flipCoinToStart();
-            game.setCurrentPlayer(firstTurnPlayer);
-            System.out.println("La moneda favorece a " + firstTurnPlayer.getName() + ".");
-            pauseAndClear("Presiona ENTER para comenzar el primer turno.");
-            if (!running) {
-                return;
-            }
+        Player firstTurnPlayer = game.flipCoinToStart();
+        if (firstTurnPlayer == null || !game.setCurrentPlayer(firstTurnPlayer)) {
+            System.out.println("No se pudo seleccionar el jugador inicial.");
+            return;
+        }
+        System.out.println("La moneda favorece a " + firstTurnPlayer.getName() + ".");
+        pauseAndClear("Presiona ENTER para comenzar el primer turno.");
+        if (running) {
             playMatch(game);
-        } catch (IllegalArgumentException | IllegalStateException exception) {
-            System.out.println("No se pudo iniciar la partida: " + exception.getMessage());
         }
     }
 
@@ -124,14 +128,14 @@ public class ConsoleUI {
         System.out.println("===================================");
 
         PokemonCard activePokemon = chooseBasicPokemon(player, "activo");
-        if (!running) {
+        if (!running || activePokemon == null) {
             return;
         }
 
         while (!player.selectInitialActivePokemon(activePokemon)) {
             System.out.println("No se pudo elegir ese Pokemon. Intenta de nuevo.");
             activePokemon = chooseBasicPokemon(player, "activo");
-            if (!running) {
+            if (!running || activePokemon == null) {
                 return;
             }
         }
@@ -153,7 +157,7 @@ public class ConsoleUI {
             }
 
             PokemonCard pokemon = chooseBasicPokemon(player, "la banca");
-            if (!running) {
+            if (!running || pokemon == null) {
                 return;
             }
 
@@ -167,8 +171,8 @@ public class ConsoleUI {
     private PokemonCard chooseBasicPokemon(Player player, String destination) {
         ArrayList<PokemonCard> basicPokemon = player.getHand().getBasicPokemonCards();
         if (basicPokemon.isEmpty()) {
-            throw new IllegalStateException(
-                    "No hay Pokemon basicos disponibles para elegir como " + destination + ".");
+            System.out.println("No hay Pokemon basicos disponibles para elegir como " + destination + ".");
+            return null;
         }
 
         System.out.println("\nElige el Pokemon " + destination + ":");
@@ -198,9 +202,7 @@ public class ConsoleUI {
 
         if (game.getWinner() != null) {
             clearConsole();
-            System.out.println("===================================");
-            System.out.println("¡" + game.getWinner().getName() + " gana el duelo!");
-            System.out.println("===================================");
+            System.out.println("¡ Felicidades " + game.getWinner().getName() + " gana el duelo! \n");
         }
     }
 
@@ -265,17 +267,22 @@ public class ConsoleUI {
             case 7:
                 return true;
             default:
-                throw new IllegalArgumentException("La opcion de accion no es valida.");
+                System.out.println("La opcion de accion no es valida.");
+                return false;
         }
     }
 
     private void changeTurn(Game game) {
         String previousPlayerName = game.getCurrentPlayer().getName();
         game.endTurn();
-        String nextPlayerName = game.getCurrentPlayer().getName();
+        Player nextPlayer = game.getCurrentPlayer();
+        if (nextPlayer == null) {
+            System.out.println("No se pudo cambiar al siguiente jugador.");
+            return;
+        }
         pauseAndClear(
                 "Turno de " + previousPlayerName + " terminado. Entrega la consola a "
-                        + nextPlayerName + " y presiona ENTER.");
+                        + nextPlayer.getName() + " y presiona ENTER.");
     }
 
     // Presenta solo los Pokémon propios para que el usuario elija dónde adjuntar la energía.
@@ -394,9 +401,9 @@ public class ConsoleUI {
             opponent = game.getPlayerOne();
         }
 
-        System.out.println("\n===================================");
+        System.out.println("\n");
         System.out.println("TURNO " + game.getTurnNumber() + " — " + current.getName());
-        System.out.println("===================================");
+        System.out.println("\n");
         showPlayerField("RIVAL", opponent);
         showPlayerField("TU CAMPO", current);
         System.out.println("\nPremios propios: " + current.getPrizePoints() + "/3");
