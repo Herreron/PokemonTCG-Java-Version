@@ -3,6 +3,7 @@ package logic.battlesystem;
 import java.util.ArrayList;
 import logic.cards.AbstractCard;
 import logic.cards.Attack;
+import logic.cards.Effect;
 import logic.cards.PokemonCard;
 import logic.cards.TrainerCard;
 import logic.cards.Type;
@@ -18,7 +19,7 @@ public class Player {
     private byte availableEnergy;
     private boolean hasAttacked;
     private boolean canAttackThisTurn;
-    private boolean hasPlayedSupport;
+    private boolean hasPlayedTrainer;
     private boolean activeRetreatCostReduced;
 
     public Player(String name, Deck deck, Hand hand, ArrayList<PokemonCard> bank, PokemonCard activePokemon,
@@ -113,7 +114,7 @@ public class Player {
         availableEnergy = 1;
         hasAttacked = false;
         canAttackThisTurn = canAttack;
-        hasPlayedSupport = false;
+        hasPlayedTrainer = false;
         activeRetreatCostReduced = false;
     }
 
@@ -217,28 +218,34 @@ public class Player {
         }
     }
 
-    public boolean playTrainerCard(TrainerCard card, Game game, PokemonCard target) {
-        if (card == null || hand == null || !hand.getCards().contains(card)) {
+    
+    public boolean playPlayableCard(AbstractCard card, Game game, PokemonCard target) {
+         if (!(card instanceof Effect)) {
             return false;
         }
-        if ("Soporte".equals(card.getTrainerType()) && hasPlayedSupport) {
+         Effect cardWithEffect = (Effect) card;
+         if (hand == null || !hand.getCards().contains(card)) {
+             return false;
+         }
+        boolean isTrainerCard = card instanceof TrainerCard;
+        if (isTrainerCard && hasPlayedTrainer) {
             return false;
         }
 
         hand.removeCard(card);
-        boolean activated = card.activateEffect(game, this, target);
+        boolean activated = cardWithEffect.activateEffect(game, this, target);
         if (!activated) {
             hand.addCard(card);
             return false;
         }
-        if ("Soporte".equals(card.getTrainerType())) {
-            hasPlayedSupport = true;
+        if (isTrainerCard) {
+            hasPlayedTrainer = true;
         }
         return true;
     }
 
-    public boolean hasPlayedSupport() {
-        return hasPlayedSupport;
+    public boolean hasPlayedTrainer() {
+        return hasPlayedTrainer;
     }
 
     public boolean useProfessorResearch() {

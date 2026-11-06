@@ -1,8 +1,6 @@
 package logic.battlesystem;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import logic.cards.AbstractCard;
 import logic.cards.ObjectCatalog;
 import logic.cards.ObjectCard;
@@ -16,22 +14,22 @@ public final class DeckFactory {
     private DeckFactory() {
     }
 
-    public static Deck createValidatedDeck(List<? extends AbstractCard> cards) {
+    public static Deck createValidatedDeck(ArrayList<AbstractCard> cards) {
         if (cards == null) {
-            return null; // En lugar de Optional.empty()
+            return null;
         }
 
         Deck deck = new Deck(new ArrayList<>(cards));
         if (!deck.validateDeck()) {
-            return null; // En lugar de Optional.empty()
+            return null;
         }
-        return deck; // Retornamos el objeto real en lugar de envolverlo en Optional.of()
+        return deck;
     }
 
     
-    public static Deck createRandomDeck(List<String> availableCardNames) {
+    public static Deck createRandomDeck(ArrayList<String> availableCardNames) {
         if (availableCardNames == null) {
-            return null; // En lugar de Optional.empty()
+            return null;
         }
 
         ArrayList<AbstractCard> firstCopies = new ArrayList<>();
@@ -40,7 +38,7 @@ public final class DeckFactory {
         ArrayList<String> processedNames = new ArrayList<>();
 
         for (String cardName : availableCardNames) {
-            if (cardName == null || cardName.isBlank()) {
+            if (cardName == null || cardName.trim().isEmpty()) {
                 return null;
             }
             if (processedNames.contains(cardName)) {
@@ -62,9 +60,12 @@ public final class DeckFactory {
             firstCopies.add(firstCopy);
             secondCopies.add(secondCopy);
 
-            if (firstCopy instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
-                basicCopies.add(firstCopy);
-                basicCopies.add(secondCopy);
+            if (firstCopy instanceof PokemonCard) {
+                PokemonCard pokemon = (PokemonCard) firstCopy;
+                if (pokemon.isBasicPokemon()) {
+                    basicCopies.add(firstCopy);
+                    basicCopies.add(secondCopy);
+                }
             }
         }
 
@@ -73,7 +74,13 @@ public final class DeckFactory {
             return null;
         }
 
-        Collections.shuffle(basicCopies);
+        // Se mezclan los Pokemon basicos con intercambios aleatorios clasicos.
+        for (int i = basicCopies.size() - 1; i > 0; i--) {
+            int randomIndex = (int) (Math.random() * (i + 1));
+            AbstractCard currentCard = basicCopies.get(i);
+            basicCopies.set(i, basicCopies.get(randomIndex));
+            basicCopies.set(randomIndex, currentCard);
+        }
         ArrayList<AbstractCard> deckCards = new ArrayList<>();
         
         // Aseguramos primero los 6 Pokémon básicos
@@ -87,9 +94,22 @@ public final class DeckFactory {
         // Rellenamos el resto hasta llegar a 20 cartas
         ArrayList<AbstractCard> remainingCopies = new ArrayList<>(firstCopies);
         remainingCopies.addAll(secondCopies);
-        Collections.shuffle(remainingCopies);
-        deckCards.addAll(remainingCopies.subList(0, 20 - deckCards.size()));
-        Collections.shuffle(deckCards);
+        for (int i = remainingCopies.size() - 1; i > 0; i--) {
+            int randomIndex = (int) (Math.random() * (i + 1));
+            AbstractCard currentCard = remainingCopies.get(i);
+            remainingCopies.set(i, remainingCopies.get(randomIndex));
+            remainingCopies.set(randomIndex, currentCard);
+        }
+        int cardsNeeded = 20 - deckCards.size();
+        for (int i = 0; i < cardsNeeded; i++) {
+            deckCards.add(remainingCopies.get(i));
+        }
+        for (int i = deckCards.size() - 1; i > 0; i--) {
+            int randomIndex = (int) (Math.random() * (i + 1));
+            AbstractCard currentCard = deckCards.get(i);
+            deckCards.set(i, deckCards.get(randomIndex));
+            deckCards.set(randomIndex, currentCard);
+        }
 
         // Retornará el Deck válido, o null si falla la validación final
         return createValidatedDeck(deckCards);
