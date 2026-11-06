@@ -1,6 +1,5 @@
-//carpetas
 package logic.cards;
-//funciones de java
+
 import java.util.ArrayList;
 import logic.battlesystem.Game;
 import logic.battlesystem.Player;
@@ -26,25 +25,31 @@ this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, 1, null);
 public PokemonCard(String name, int cardNumber, int healthPoints, int retreatCost,
 ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom) {
 super(name, cardNumber);
-if (phase < 1 || phase > 3) {
-throw new IllegalArgumentException("La fase debe estar entre 1 y 3.");
-        }
-if (phase == 1 && evolvesFrom != null) {
-throw new IllegalArgumentException("Un Pokemon basico no puede evolucionar de otro Pokemon.");
-        }
-if (phase > 1 && (evolvesFrom == null || evolvesFrom.isBlank())) {
-throw new IllegalArgumentException("Un Pokemon evolucionado debe indicar de que Pokemon evoluciona.");
-        }
-
-this.healthPoints = healthPoints;
-this.maxHealthPoints = healthPoints;
-this.retreatCost = retreatCost;
-this.attacks = attacks;
+this.healthPoints = Math.max(0, healthPoints);
+this.maxHealthPoints = this.healthPoints;
+this.retreatCost = Math.max(0, retreatCost);
+if (attacks == null) {
+    this.attacks = new ArrayList<>();
+} else {
+    this.attacks = attacks;
+}
 this.isEx = isEx;
 this.attachedEnergy = 0;
-this.phase = phase;
+this.phase = phase >= 1 && phase <= 3 ? phase : 1;
+if (this.phase == 1) {
+this.evolvesFrom = null;
+} else {
 this.evolvesFrom = evolvesFrom;
+}
 
+    }
+
+// Constructor con tipo: usa el constructor de arriba y despues guarda el tipo.
+// Los otros dos constructores siguen dejando COLORLESS por defecto.
+public PokemonCard(String name, int cardNumber, int healthPoints, int retreatCost,
+ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom, Type type) {
+this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, phase, evolvesFrom);
+setType(type);
     }
 
 // getters
@@ -85,7 +90,9 @@ return type;
     }
 
 public void setType(Type type) {
-this.type = type;
+if (type != null) {
+    this.type = type;
+}
     }
 
 public boolean isBasicPokemon() {
@@ -93,24 +100,28 @@ return phase == 1;
     }
 
 public void setAttachedEnergy(int attachedEnergy) {
-this.attachedEnergy = attachedEnergy;
+this.attachedEnergy = Math.max(0, attachedEnergy);
     }
 
 // methods
 public void receiveDamage(int amount) {
-healthPoints = Math.max(0, healthPoints - amount);
+if (amount > 0) {
+    healthPoints = Math.max(0, healthPoints - amount);
+}
     }
 
 public void receiveDamage(int amount, Type attackerType) {
 int total = amount;
-if (type.isWeakTo(attackerType)) {
+if (attackerType != null && type.isWeakTo(attackerType)) {
 total += Type.WEAKNESS_BONUS;
         }
 receiveDamage(total);
     }
 
 public void heal(int amount) {
-healthPoints = Math.min(maxHealthPoints, healthPoints + amount);
+if (amount > 0) {
+    healthPoints = Math.min(maxHealthPoints, healthPoints + amount);
+}
     }
 
 public boolean isDefeated() {
@@ -122,8 +133,9 @@ return isEx ? 2 : 1;
     }
 
     @Override
-public void activateEffect(Game game, Player player) {
-// A Pokemon card has no effect of its own
+public boolean activateEffect(Game game, Player player) {
+    // Una carta Pokemon no tiene efecto propio, por eso siempre devuelve false.
+    return false;
     }
 
     @Override

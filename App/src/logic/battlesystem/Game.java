@@ -4,11 +4,18 @@ import java.util.Random;
 
 public class Game {
 
+    public enum VictoryReason {
+        PRIZE_POINTS,
+        NO_POKEMON_IN_PLAY,
+        EMPTY_DECK
+    }
+
     private final Player playerOne;
     private final Player playerTwo;
     private final Random random;
     private Player currentPlayer;
     private Player winner;
+    private VictoryReason victoryReason;
     private int turnNumber;
     private boolean finished;
 
@@ -63,6 +70,7 @@ public class Game {
         }
 
         winner = getOpponent(currentPlayer);
+        victoryReason = VictoryReason.EMPTY_DECK;
         finished = winner != null;
         return false;
     }
@@ -85,10 +93,18 @@ public class Game {
             return false;
         }
 
-        if (playerOne.getPrizePoints() >= 3 || !hasPokemonInPlay(playerTwo)) {
+        if (playerOne.getPrizePoints() >= 3) {
             winner = playerOne;
-        } else if (playerTwo.getPrizePoints() >= 3 || !hasPokemonInPlay(playerOne)) {
+            victoryReason = VictoryReason.PRIZE_POINTS;
+        } else if (playerTwo.getPrizePoints() >= 3) {
             winner = playerTwo;
+            victoryReason = VictoryReason.PRIZE_POINTS;
+        } else if (!hasPokemonInPlay(playerTwo)) {
+            winner = playerOne;
+            victoryReason = VictoryReason.NO_POKEMON_IN_PLAY;
+        } else if (!hasPokemonInPlay(playerOne)) {
+            winner = playerTwo;
+            victoryReason = VictoryReason.NO_POKEMON_IN_PLAY;
         }
 
         if (winner != null) {
@@ -110,6 +126,10 @@ public class Game {
             return playerOne;
         }
         return null;
+    }
+
+    public Player getOpponentOf(Player player) {
+        return getOpponent(player);
     }
 
     public Player getPlayerOne() {
@@ -134,6 +154,10 @@ public class Game {
 
     public Player getWinner() {
         return winner;
+    }
+
+    public VictoryReason getVictoryReason() {
+        return victoryReason;
     }
 
     public int getTurnNumber() {

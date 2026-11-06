@@ -79,8 +79,11 @@ public class Hand {
      */
     public boolean hasBasicPokemon() {
         for (AbstractCard card : cardsHand) {
-            if (card instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
-                return true;
+            if (card instanceof PokemonCard) {
+                PokemonCard pokemon = (PokemonCard) card;
+                if (pokemon.isBasicPokemon()) {
+                    return true;
+                }
             }
         }
         return false;
@@ -92,8 +95,11 @@ public class Hand {
     public ArrayList<PokemonCard> getBasicPokemonCards() {
         ArrayList<PokemonCard> basicPokemons = new ArrayList<>();
         for (AbstractCard card : cardsHand) {
-            if (card instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
-                basicPokemons.add(pokemon);
+            if (card instanceof PokemonCard) {
+                PokemonCard pokemon = (PokemonCard) card;
+                if (pokemon.isBasicPokemon()) {
+                    basicPokemons.add(pokemon);
+                }
             }
         }
         return basicPokemons;

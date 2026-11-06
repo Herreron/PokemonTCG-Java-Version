@@ -2,9 +2,6 @@
 package logic.battlesystem;
 //funciones de java
 import java.util.ArrayList; //listas
-import java.util.Collections; //ordenamientos
-import java.util.HashMap;//diccionarios
-import java.util.Map;
 //importes de clases
 import logic.cards.AbstractCard;
 import logic.cards.PokemonCard;
@@ -52,7 +49,13 @@ public class Deck {
     }
 
     public void shuffle() { //baraja el mazo
-        Collections.shuffle(cardsDeck); //collections.shuffle() es un metodo de la clase Collections que baraja los elementos de una lista
+        // Barajado clasico: intercambia cada carta con una posicion aleatoria.
+        for (int i = cardsDeck.size() - 1; i > 0; i--) {
+            int randomIndex = (int) (Math.random() * (i + 1));
+            AbstractCard currentCard = cardsDeck.get(i);
+            cardsDeck.set(i, cardsDeck.get(randomIndex));
+            cardsDeck.set(randomIndex, currentCard);
+        }
     }
 
     public AbstractCard drawCard() {//roba la carta superior del mazo
@@ -60,6 +63,20 @@ public class Deck {
             return null;
         }
         return cardsDeck.remove(0);
+    }
+
+    public PokemonCard drawBasicPokemon() {
+        for (int i = 0; i < cardsDeck.size(); i++) {
+            AbstractCard card = cardsDeck.get(i);
+            if (card instanceof PokemonCard) {
+                PokemonCard pokemon = (PokemonCard) card;
+                if (pokemon.isBasicPokemon()) {
+                    cardsDeck.remove(i);
+                    return pokemon;
+                }
+            }
+        }
+        return null;
     }
 
 
@@ -75,23 +92,39 @@ public class Deck {
         }
 
         int pokemonCount = 0;
-        Map<String, Integer> cardCounts = new HashMap<>();
 
-        for (AbstractCard card : cardsDeck) {
+        // Se recorren las cartas con ciclos clasicos para contar copias por nombre.
+        for (int i = 0; i < cardsDeck.size(); i++) {
+            AbstractCard card = cardsDeck.get(i);
             if (card == null) {
                 return false;
             }
 
-            if (card instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
-                pokemonCount++;
+            if (card instanceof PokemonCard) {
+                PokemonCard pokemon = (PokemonCard) card;
+                if (pokemon.isBasicPokemon()) {
+                    pokemonCount++;
+                }
             }
 
             String cardName = card.getName();
-            int count = cardCounts.getOrDefault(cardName, 0) + 1; //metodo de la clase HashMap que cuenta cuantas veces aparece la carta en el mazo
+            int count = 0;
+            for (int j = 0; j < cardsDeck.size(); j++) {
+                AbstractCard comparedCard = cardsDeck.get(j);
+                if (comparedCard == null) {
+                    return false;
+                }
+                if (cardName == null) {
+                    if (comparedCard.getName() == null) {
+                        count++;
+                    }
+                } else if (cardName.equals(comparedCard.getName())) {
+                    count++;
+                }
+            }
             if (count > 2) {
                 return false; // Excede el maximo de 2 copias por carta
             }
-            cardCounts.put(cardName, count);
         }
 
         return pokemonCount >= 6;
@@ -120,8 +153,11 @@ public class Deck {
                 if (!cardsDeck.isEmpty()) {
                     AbstractCard drawn = drawCard();
                     initialHand.add(drawn);
-                    if (drawn instanceof PokemonCard pokemon && pokemon.isBasicPokemon()) {
-                        hasBasicPokemon = true;
+                    if (drawn instanceof PokemonCard) {
+                        PokemonCard pokemon = (PokemonCard) drawn;
+                        if (pokemon.isBasicPokemon()) {
+                            hasBasicPokemon = true;
+                        }
                     }
                 }
             }
