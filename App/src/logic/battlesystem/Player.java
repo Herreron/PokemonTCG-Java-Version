@@ -203,9 +203,9 @@ public class Player {
             return false;
         }
         return performAttack(
-                opponent, attack.getBaseDamage(), attack.getEnergyCost(), attack.getEnergyType());
+            opponent, attack.getBaseDamage(), attack.getEnergyCost(), activePokemon.getType());
     }
-
+    
     private void handleActivePokemonDefeat() {
         if (activePokemon == null || !activePokemon.isDefeated()) {
             return;
@@ -227,8 +227,9 @@ public class Player {
          if (hand == null || !hand.getCards().contains(card)) {
              return false;
          }
-        boolean isTrainerCard = card instanceof TrainerCard;
-        if (isTrainerCard && hasPlayedTrainer) {
+        boolean isSupportCard = card instanceof TrainerCard
+                && ((TrainerCard) card).isSupport();
+        if (isSupportCard && hasPlayedTrainer) {
             return false;
         }
 
@@ -238,7 +239,7 @@ public class Player {
             hand.addCard(card);
             return false;
         }
-        if (isTrainerCard) {
+        if (isSupportCard) {
             hasPlayedTrainer = true;
         }
         return true;
