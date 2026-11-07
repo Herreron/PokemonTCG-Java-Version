@@ -8,12 +8,16 @@ public class TrainerCard extends AbstractCard {
     private final String trainerType; // "Soporte" u "Objeto"
 
     public TrainerCard(String name, int cardNumber, String trainerType) {
-        super(name, cardNumber);
+        super(name, String.valueOf(cardNumber), "Trainer");
         this.trainerType = trainerType;
     }
 
     public String getTrainerType() {
         return trainerType;
+    }
+
+    public boolean isSupport() {
+        return "Soporte".equals(trainerType);
     }
 
     @Override

@@ -50,7 +50,6 @@ public class ConsoleUI {
         System.out.println("-----------------------------------");
     }
 
-//creacion de jugadore y mazos
     private void startQuickMatch() {
         String firstName = "";
         while (running && firstName.isEmpty()) {
@@ -81,16 +80,23 @@ public class ConsoleUI {
             }
         }
 
-        // Creación clásica: la fábrica devuelve un Deck.
-        Deck firstDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
-        Deck secondDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
+        Deck firstDeck = chooseThemeDeck(firstName);
+        if (!running || firstDeck == null) {
+            return;
+        }
 
+        Deck secondDeck = chooseThemeDeck(secondName);
+        if (!running || secondDeck == null) {
+            return;
+        }
+
+        // Create the players with their chosen decks
         Player firstPlayer = createPlayer(firstName, firstDeck);
         Player secondPlayer = createPlayer(secondName, secondDeck);
 
         Game game = new Game(firstPlayer, secondPlayer);
         if (!game.prepareInitialHands()) {
-            System.out.println("No se pudieron repartir las manos iniciales.");
+            System.out.println("Could not deal initial hands.");
             return;
         }
 
@@ -206,6 +212,34 @@ public class ConsoleUI {
             return null;
         }
         return basicPokemon.get(choice - 1);
+    }
+
+    private Deck chooseThemeDeck(String playerName) {
+        System.out.println("\nElije tu tipo de mazo \n" + playerName);
+        System.out.println("1. Mazo de fuego");
+        System.out.println("2. Mazo de agua");
+        System.out.println("3. Mazo electrico");
+        System.out.println("4. Mazo psiquico");
+        System.out.print("Escoje tu opcion: (1-4)");
+
+        if (!scanner.hasNextLine()) {
+            running = false;
+            return null;
+        }
+
+        String choice = scanner.nextLine().trim();
+
+        return switch (choice) {
+            case "2" -> DeckFactory.createWaterDeck();
+            case "3" -> DeckFactory.createElectricDeck();
+            case "4" -> DeckFactory.createPsychicDeck();
+            default -> {
+                if (!choice.equals("1")) {
+                    System.out.println("Opcion invalida. Asignando Mazo de fuego por defecto.");
+                }
+                yield DeckFactory.createFireDeck();
+            }
+        };
     }
 
 //gestion de turnos y acciones
@@ -371,7 +405,9 @@ public class ConsoleUI {
 
         if (player.playPlayableCard(card, game, target)) {
             System.out.println(card.getName() + " se jugo correctamente.");
-        } else if (card instanceof TrainerCard && player.hasPlayedTrainer()) {
+        } else if (card instanceof TrainerCard
+                && ((TrainerCard) card).isSupport()
+                && player.hasPlayedTrainer()) {
             System.out.println("Ya jugaste una carta de entrenador durante este turno.");
         } else {
             System.out.println("No se pudo activar el efecto de " + card.getName() + ".");
@@ -616,7 +652,6 @@ public class ConsoleUI {
         Player winner = game.getWinner();
         Player loser = game.getOpponentOf(winner);
 
-        System.out.println("\n===================================");
         switch (game.getVictoryReason()) {
             case NO_POKEMON_IN_PLAY:
                 System.out.println(loser.getName()
@@ -635,7 +670,6 @@ public class ConsoleUI {
                 break;
         }
         System.out.println("¡Felicidades " + winner.getName() + ", ganas el duelo!");
-        System.out.println("===================================\n");
     }
 
 //captura de entrada y manejo de errores
@@ -695,4 +729,5 @@ public class ConsoleUI {
             }
         }
     }
+
 }

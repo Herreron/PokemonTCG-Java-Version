@@ -17,14 +17,14 @@ private final String evolvesFrom;
 private Type type = Type.COLORLESS;
 
 // Constructors
-public PokemonCard(String name, int cardNumber, int healthPoints, int retreatCost,
+public PokemonCard(String name, String cardNumber, int healthPoints, int retreatCost,
 ArrayList<Attack> attacks, boolean isEx) {
 this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, 1, null);
     }
 
-public PokemonCard(String name, int cardNumber, int healthPoints, int retreatCost,
+public PokemonCard(String name, String cardNumber, int healthPoints, int retreatCost,
 ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom) {
-super(name, cardNumber);
+super(name, cardNumber,"Pokemon");
 this.healthPoints = Math.max(0, healthPoints);
 this.maxHealthPoints = this.healthPoints;
 this.retreatCost = Math.max(0, retreatCost);
@@ -46,13 +46,14 @@ this.evolvesFrom = evolvesFrom;
 
 // Constructor con tipo: usa el constructor de arriba y despues guarda el tipo.
 // Los otros dos constructores siguen dejando COLORLESS por defecto.
-public PokemonCard(String name, int cardNumber, int healthPoints, int retreatCost,
+public PokemonCard(String name, String cardNumber, int healthPoints, int retreatCost,
 ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom, Type type) {
 this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, phase, evolvesFrom);
 setType(type);
     }
 
 // getters
+
 public int getHealthPoints() {
 return healthPoints;
     }
