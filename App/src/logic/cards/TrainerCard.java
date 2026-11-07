@@ -3,12 +3,12 @@ package logic.cards;
 import logic.battlesystem.Game;
 import logic.battlesystem.Player;
 
-public class TrainerCard extends AbstractCard {
+public class TrainerCard extends AbstractCard implements Effect {
 
     private final String trainerType; // "Soporte" u "Objeto"
 
-    public TrainerCard(String name, int cardNumber, String trainerType) {
-        super(name, String.valueOf(cardNumber), "Trainer");
+    public TrainerCard(String name, String trainerType) {
+        super(name, "Trainer");
         this.trainerType = trainerType;
     }
 
@@ -35,7 +35,7 @@ public class TrainerCard extends AbstractCard {
             case "Investigacion del Profesor":
                 return player.useProfessorResearch();
             case "Misty":
-                return player.attachWaterEnergy(target, 3) > 0;
+                return player.attachWaterEnergy(target, (byte) 3) > 0;
             default:
                 return false;
         }

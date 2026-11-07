@@ -1,33 +1,31 @@
 package logic.cards;
 
 import java.util.ArrayList;
-import logic.battlesystem.Game;
-import logic.battlesystem.Player;
 
 public class PokemonCard extends AbstractCard {
 
-private int healthPoints;
-private final int maxHealthPoints;
-private int retreatCost;
+private short healthPoints;
+private final short maxHealthPoints;
+private byte retreatCost;
 private ArrayList<Attack> attacks;
 private boolean isEx;
-private int attachedEnergy;
-private final int phase;
+private byte attachedEnergy;
+private final byte phase;
 private final String evolvesFrom;
 private Type type = Type.COLORLESS;
 
 // Constructors
-public PokemonCard(String name, String cardNumber, int healthPoints, int retreatCost,
+public PokemonCard(String name, short healthPoints, byte retreatCost,
 ArrayList<Attack> attacks, boolean isEx) {
-this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, 1, null);
+this(name, healthPoints, retreatCost, attacks, isEx, (byte) 1, null);
     }
 
-public PokemonCard(String name, String cardNumber, int healthPoints, int retreatCost,
-ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom) {
-super(name, cardNumber,"Pokemon");
-this.healthPoints = Math.max(0, healthPoints);
+public PokemonCard(String name, short healthPoints, byte retreatCost,
+ArrayList<Attack> attacks, boolean isEx, byte phase, String evolvesFrom) {
+super(name, "Pokemon");
+this.healthPoints = (short) Math.max(0, healthPoints);
 this.maxHealthPoints = this.healthPoints;
-this.retreatCost = Math.max(0, retreatCost);
+this.retreatCost = (byte) Math.max(0, retreatCost);
 if (attacks == null) {
     this.attacks = new ArrayList<>();
 } else {
@@ -35,7 +33,7 @@ if (attacks == null) {
 }
 this.isEx = isEx;
 this.attachedEnergy = 0;
-this.phase = phase >= 1 && phase <= 3 ? phase : 1;
+this.phase = phase >= 1 && phase <= 3 ? phase : (byte) 1;
 if (this.phase == 1) {
 this.evolvesFrom = null;
 } else {
@@ -46,23 +44,23 @@ this.evolvesFrom = evolvesFrom;
 
 // Constructor con tipo: usa el constructor de arriba y despues guarda el tipo.
 // Los otros dos constructores siguen dejando COLORLESS por defecto.
-public PokemonCard(String name, String cardNumber, int healthPoints, int retreatCost,
-ArrayList<Attack> attacks, boolean isEx, int phase, String evolvesFrom, Type type) {
-this(name, cardNumber, healthPoints, retreatCost, attacks, isEx, phase, evolvesFrom);
+public PokemonCard(String name, short healthPoints, byte retreatCost,
+ArrayList<Attack> attacks, boolean isEx, byte phase, String evolvesFrom, Type type) {
+this(name, healthPoints, retreatCost, attacks, isEx, phase, evolvesFrom);
 setType(type);
     }
 
 // getters
 
-public int getHealthPoints() {
+public short getHealthPoints() {
 return healthPoints;
     }
 
-public int getMaxHealthPoints() {
+public short getMaxHealthPoints() {
 return maxHealthPoints;
     }
 
-public int getRetreatCost() {
+public byte getRetreatCost() {
 return retreatCost;
     }
 
@@ -74,11 +72,11 @@ public boolean isEx() {
 return isEx;
     }
 
-public int getAttachedEnergy() {
+public byte getAttachedEnergy() {
 return attachedEnergy;
     }
 
-public int getPhase() {
+public byte getPhase() {
 return phase;
     }
 
@@ -100,28 +98,28 @@ public boolean isBasicPokemon() {
 return phase == 1;
     }
 
-public void setAttachedEnergy(int attachedEnergy) {
-this.attachedEnergy = Math.max(0, attachedEnergy);
+public void setAttachedEnergy(byte attachedEnergy) {
+this.attachedEnergy = (byte) Math.max(0, attachedEnergy);
     }
 
 // methods
-public void receiveDamage(int amount) {
+public void receiveDamage(short amount) {
 if (amount > 0) {
-    healthPoints = Math.max(0, healthPoints - amount);
+    healthPoints = (short) Math.max(0, healthPoints - amount);
 }
     }
 
-public void receiveDamage(int amount, Type attackerType) {
+public void receiveDamage(short amount, Type attackerType) {
 int total = amount;
 if (attackerType != null && type.isWeakTo(attackerType)) {
 total += Type.WEAKNESS_BONUS;
         }
-receiveDamage(total);
+receiveDamage((short) Math.min(Short.MAX_VALUE, total));
     }
 
-public void heal(int amount) {
+public void heal(short amount) {
 if (amount > 0) {
-    healthPoints = Math.min(maxHealthPoints, healthPoints + amount);
+    healthPoints = (short) Math.min(maxHealthPoints, healthPoints + amount);
 }
     }
 
@@ -129,14 +127,8 @@ public boolean isDefeated() {
 return healthPoints <= 0;
     }
 
-public int calculatePrizePoints() {
-return isEx ? 2 : 1;
-    }
-
-    @Override
-public boolean activateEffect(Game game, Player player) {
-    // Una carta Pokemon no tiene efecto propio, por eso siempre devuelve false.
-    return false;
+public byte calculatePrizePoints() {
+return isEx ? (byte) 2 : (byte) 1;
     }
 
     @Override

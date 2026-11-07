@@ -21,6 +21,8 @@ public class Player {
     private boolean canAttackThisTurn;
     private boolean hasPlayedTrainer;
     private boolean activeRetreatCostReduced;
+    private byte turnsStarted;
+    private ArrayList<PokemonCard> pokemonEligibleToEvolve;
 
     public Player(String name, Deck deck, Hand hand, ArrayList<PokemonCard> bank, PokemonCard activePokemon,
             byte prizePoints, byte availableEnergy) {
@@ -35,6 +37,7 @@ public class Player {
         this.activePokemon = activePokemon;
         this.prizePoints = prizePoints;
         this.availableEnergy = availableEnergy;
+        this.pokemonEligibleToEvolve = new ArrayList<>();
     }
 
     public String getName() {
@@ -111,11 +114,24 @@ public class Player {
     }
 
     public void prepareTurn(boolean canAttack) {
+        if (turnsStarted < 2) {
+            turnsStarted++;
+        }
         availableEnergy = 1;
         hasAttacked = false;
         canAttackThisTurn = canAttack;
         hasPlayedTrainer = false;
         activeRetreatCostReduced = false;
+
+        pokemonEligibleToEvolve.clear();
+        if (turnsStarted > 1) {
+            if (activePokemon != null) {
+                pokemonEligibleToEvolve.add(activePokemon);
+            }
+            if (bank != null) {
+                pokemonEligibleToEvolve.addAll(bank);
+            }
+        }
     }
 
     public boolean drawCard() {
@@ -148,7 +164,7 @@ public class Player {
             return false;
         }
 
-        pokemon.setAttachedEnergy(pokemon.getAttachedEnergy() + 1);
+        pokemon.setAttachedEnergy((byte) Math.min(Byte.MAX_VALUE, pokemon.getAttachedEnergy() + 1));
         availableEnergy--;
         return true;
     }
@@ -161,7 +177,7 @@ public class Player {
     }
 
     public boolean retreatActive(PokemonCard replacement) {
-        int retreatCost = getActiveRetreatCost();
+        byte retreatCost = getActiveRetreatCost();
         if (activePokemon == null || bank == null || replacement == null
                 || !bank.contains(replacement)
                 || activePokemon.getAttachedEnergy() < retreatCost) {
@@ -169,19 +185,19 @@ public class Player {
         }
 
         activePokemon.setAttachedEnergy(
-                activePokemon.getAttachedEnergy() - retreatCost);
+                (byte) Math.max(0, activePokemon.getAttachedEnergy() - retreatCost));
         int replacementIndex = bank.indexOf(replacement);
         bank.set(replacementIndex, activePokemon);
         activePokemon = replacement;
         return true;
     }
 
-    public boolean attackOpponent(Player opponent, int baseDamage, int energyCost) {
-        Type attackType = activePokemon == null ? null : activePokemon.getType();
-        return performAttack(opponent, baseDamage, energyCost, attackType);
+    public boolean attackOpponent(Player opponent, short baseDamage, byte energyCost) {
+        // Esta variante no recibe un ataque concreto; se trata como incoloro.
+        return performAttack(opponent, baseDamage, energyCost, Type.COLORLESS);
     }
 
-    private boolean performAttack(Player opponent, int baseDamage, int energyCost, Type attackType) {
+    private boolean performAttack(Player opponent, short baseDamage, byte energyCost, Type attackType) {
         if (opponent == null || opponent == this || baseDamage < 0 || energyCost < 0
                 || activePokemon == null || opponent.activePokemon == null
                 || !canAttackThisTurn || hasAttacked
@@ -193,7 +209,10 @@ public class Player {
         defendingPokemon.receiveDamage(baseDamage, attackType);
         hasAttacked = true;
 
-        opponent.handleActivePokemonDefeat();
+        byte prizePoints = opponent.handleActivePokemonDefeat();
+        if (prizePoints > 0) {
+            awardPrizePoints(prizePoints);
+        }
         return true;
     }
 
@@ -203,19 +222,30 @@ public class Player {
             return false;
         }
         return performAttack(
-            opponent, attack.getBaseDamage(), attack.getEnergyCost(), activePokemon.getType());
+                opponent, attack.getBaseDamage(), attack.getEnergyCost(), attack.getEnergyType());
     }
     
-    private void handleActivePokemonDefeat() {
+    private byte handleActivePokemonDefeat() {
         if (activePokemon == null || !activePokemon.isDefeated()) {
-            return;
+            return (byte) 0;
         }
-        awardPrizePoints(activePokemon.calculatePrizePoints());
-        if (bank == null || bank.isEmpty()) {
-            activePokemon = null;
-        } else {
-            activePokemon = bank.remove(0);
+        byte prizePoints = activePokemon.calculatePrizePoints();
+        activePokemon = null;
+        return prizePoints;
+    }
+
+    public boolean promotePokemon(PokemonCard pokemon) {
+        if (activePokemon != null || bank == null || pokemon == null) {
+            return false;
         }
+
+        int pokemonIndex = bank.indexOf(pokemon);
+        if (pokemonIndex < 0) {
+            return false;
+        }
+
+        activePokemon = bank.remove(pokemonIndex);
+        return true;
     }
 
     
@@ -259,12 +289,22 @@ public class Player {
         return true;
     }
 
-    public int attachWaterEnergy(PokemonCard target, int maximum) {
+    public byte attachWaterEnergy(PokemonCard target, byte maximum) {
         if (target == null || maximum <= 0 || !isInPlay(target) || target.getType() != Type.WATER) {
-            return 0;
+            return (byte) 0;
         }
-        target.setAttachedEnergy(target.getAttachedEnergy() + maximum);
+        target.setAttachedEnergy((byte) Math.min(
+                Byte.MAX_VALUE, target.getAttachedEnergy() + maximum));
         return maximum;
+    }
+
+    public boolean healPokemon(PokemonCard pokemon, short amount) {
+        if (amount <= 0 || !isInPlay(pokemon)
+                || pokemon.getHealthPoints() >= pokemon.getMaxHealthPoints()) {
+            return false;
+        }
+        pokemon.heal(amount);
+        return true;
     }
 
     public boolean searchBasicPokemonInDeck() {
@@ -287,12 +327,12 @@ public class Player {
         return true;
     }
 
-    public int getActiveRetreatCost() {
+    public byte getActiveRetreatCost() {
         if (activePokemon == null) {
-            return 0;
+            return (byte) 0;
         }
-        int reduction = activeRetreatCostReduced ? 1 : 0;
-        return Math.max(0, activePokemon.getRetreatCost() - reduction);
+        byte reduction = activeRetreatCostReduced ? (byte) 1 : (byte) 0;
+        return (byte) Math.max(0, activePokemon.getRetreatCost() - reduction);
     }
 
     private boolean isInPlay(PokemonCard pokemon) {
@@ -300,7 +340,7 @@ public class Player {
                 && (pokemon == activePokemon || (bank != null && bank.contains(pokemon)));
     }
 
-    private void awardPrizePoints(int points) {
+    private void awardPrizePoints(byte points) {
         int updatedPoints = prizePoints + points;
         if (updatedPoints > Byte.MAX_VALUE) {
             updatedPoints = Byte.MAX_VALUE;
@@ -333,7 +373,7 @@ public class Player {
     private void executeEvolution(PokemonCard target, PokemonCard evolution) {
         evolution.setAttachedEnergy(target.getAttachedEnergy());
 
-        int damageTaken = target.getMaxHealthPoints() - target.getHealthPoints();
+        short damageTaken = (short) (target.getMaxHealthPoints() - target.getHealthPoints());
         evolution.receiveDamage(damageTaken);
 
         if (target == activePokemon) {
@@ -362,6 +402,7 @@ public class Player {
 
     private boolean canEvolve(PokemonCard currentPokemon, PokemonCard evolution) {
         return currentPokemon != null
+                && pokemonEligibleToEvolve.contains(currentPokemon)
                 && evolution.getEvolvesFrom() != null
                 && evolution.getPhase() == currentPokemon.getPhase() + 1
                 && evolution.getEvolvesFrom().equals(currentPokemon.getName());
