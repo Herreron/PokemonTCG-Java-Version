@@ -16,7 +16,7 @@ public class Game {
     private Player currentPlayer;
     private Player winner;
     private VictoryReason victoryReason;
-    private int turnNumber;
+    private short turnNumber;
     private boolean finished;
 
     public Game() {
@@ -63,7 +63,9 @@ public class Game {
             return false;
         }
 
-        turnNumber++;
+        if (turnNumber < Short.MAX_VALUE) {
+            turnNumber++;
+        }
         currentPlayer.prepareTurn(turnNumber > 1);
         if (currentPlayer.drawCard()) {
             return true;
@@ -160,7 +162,7 @@ public class Game {
         return victoryReason;
     }
 
-    public int getTurnNumber() {
+    public short getTurnNumber() {
         return turnNumber;
     }
 

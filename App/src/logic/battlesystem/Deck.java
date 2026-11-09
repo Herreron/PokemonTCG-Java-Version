@@ -36,11 +36,11 @@ public class Deck {
     // Methods
 
     public boolean isEmpty() {//revisa si el mazo esta vacio.
-        return cardsDeck.isEmpty();//metodo de arraylist
+        return cardsDeck.isEmpty();
     }
 
         public int size() { //devuelve el tamaño del mazo
-        return cardsDeck.size();//metodo de arraylist
+        return cardsDeck.size();
     }
 
 
@@ -49,7 +49,6 @@ public class Deck {
     }
 
     public void shuffle() { //baraja el mazo
-        // Barajado clasico: intercambia cada carta con una posicion aleatoria.
         for (int i = cardsDeck.size() - 1; i > 0; i--) {
             int randomIndex = (int) (Math.random() * (i + 1));
             AbstractCard currentCard = cardsDeck.get(i);
@@ -80,20 +79,13 @@ public class Deck {
     }
 
 
-    /**
-     * Valida el mazo segun los requisitos del RF4:
-     * - Exactamente 20 cartas.
-     * - Minimo 6 Pokemon basicos.
-     * - Maximo 2 copias por carta.
-     */
     public boolean validateDeck() {
         if (cardsDeck.size() != 20) {
             return false;
         }
 
-        int pokemonCount = 0;
+        byte pokemonCount = 0;
 
-        // Se recorren las cartas con ciclos clasicos para contar copias por nombre.
         for (int i = 0; i < cardsDeck.size(); i++) {
             AbstractCard card = cardsDeck.get(i);
             if (card == null) {
@@ -108,7 +100,7 @@ public class Deck {
             }
 
             String cardName = card.getName();
-            int count = 0;
+            byte count = 0;
             for (int j = 0; j < cardsDeck.size(); j++) {
                 AbstractCard comparedCard = cardsDeck.get(j);
                 if (comparedCard == null) {
@@ -130,11 +122,7 @@ public class Deck {
         return pokemonCount >= 6;
     }
 
-    /**
-     * Reparte la mano inicial de 5 cartas.
-     * Si entre las 5 cartas repartidas
-     * no hay ningun Pokemon basico, se devuelven al mazo, se baraja y se reintenta.
-     */
+   //mulligan
     public ArrayList<AbstractCard> dealInitialHand() {
         ArrayList<AbstractCard> initialHand = new ArrayList<>();
         boolean hasBasicPokemon = false;

@@ -8,11 +8,11 @@ public final class TrainerCatalog {
     }
 
     public static TrainerCard createProfessorResearch() {
-        return new TrainerCard("Investigacion del Profesor", 14, "Soporte");
+        return new TrainerCard("Investigacion del Profesor", "Soporte");
     }
 
     public static TrainerCard createMisty() {
-        return new TrainerCard("Misty", 15, "Soporte");
+        return new TrainerCard("Misty", "Soporte");
     }
 
     public static ArrayList<TrainerCard> createAllTrainerCards() {

@@ -1,20 +1,20 @@
 package logic.cards;
 
-public abstract class AbstractCard implements Effect {
+public abstract class AbstractCard {
 
     private String name;
-    private int cardNumber;
+    private String cardType;
 
-    public AbstractCard(String name, int cardNumber) {
+    public AbstractCard(String name, String cardType) {
         this.name = name;
-        this.cardNumber = cardNumber;
+        this.cardType = cardType;
     }
 
     public String getName() {
         return name;
     }
 
-    public int getCardNumber() {
-        return cardNumber;
+    public String getCardType() {
+        return cardType;
     }
 }

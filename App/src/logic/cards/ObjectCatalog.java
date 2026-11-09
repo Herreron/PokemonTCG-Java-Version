@@ -8,15 +8,15 @@ public final class ObjectCatalog {
     }
 
     public static ObjectCard createPotion() {
-        return new ObjectCard("Pocion", 11);
+        return new ObjectCard("Pocion");
     }
 
     public static ObjectCard createPokeBall() {
-        return new ObjectCard("Poke Ball", 12);
+        return new ObjectCard("Poke Ball");
     }
 
     public static ObjectCard createSpeedBoost() {
-        return new ObjectCard("Turbo Velocidad", 13);
+        return new ObjectCard("Turbo Velocidad");
     }
 
     public static ArrayList<ObjectCard> createAllObjectCards() {
@@ -40,4 +40,3 @@ public final class ObjectCatalog {
         return null;
     }
 }
-
