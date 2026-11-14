@@ -7,7 +7,7 @@ import java.awt.Image;
 import java.awt.LayoutManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.net.URL;
+import java.net.URL; // permite hacer rutas de archivos 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -35,7 +35,7 @@ public class MainMenu extends JPanel {
         this.whitePanel.setBounds(0, 0, 400, 500);
         this.add(this.whitePanel);
         this.logoLabel = new JLabel();
-        this.logoLabel.setIcon(this.cargarIcono("/media/images/logo.png", 500, 200));
+        this.logoLabel.setIcon(this.cargarIcono("/media/images/windowsAccessories/logo.png", 500, 200));
         this.logoLabel.setHorizontalAlignment(0);
         this.logoLabel.setBounds(150, 30, 500, 200);
         this.add(this.logoLabel);
@@ -52,7 +52,7 @@ public class MainMenu extends JPanel {
         this.btnExit.setBounds(300, 380, 200, 40);
         this.add(this.btnExit);
         this.setComponentZOrder(this.btnExit, 0);
-        ImageIcon iconPokeball = this.cargarIcono("/media/images/pokeball.png", 40, 40);
+        ImageIcon iconPokeball = this.cargarIcono("/media/images/windowsAccessories/pokeball.png", 40, 40);
         this.poke1 = new JLabel();
         if (iconPokeball != null) {
             this.poke1.setIcon(iconPokeball);
@@ -86,7 +86,7 @@ public class MainMenu extends JPanel {
             public void actionPerformed(ActionEvent e) {
                 System.out.println("Boton presionado: Partida Rapida");
                 JPanel container = (JPanel)MainMenu.this.getParent();
-              //  container.add(new CreatePLayers(container, 1), "PLAYER1");
+                container.add(new CreatePlayers(container, 1), "PLAYER1");
                 ((CardLayout)container.getLayout()).show(container, "PLAYER1");
             }
         });
