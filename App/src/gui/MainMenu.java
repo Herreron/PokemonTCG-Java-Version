@@ -25,6 +25,7 @@ public class MainMenu extends JPanel {
 
     public MainMenu() {
         this.initComponents();
+        BackgroundMusic.playIntro();
     }
 
     private void initComponents() {
