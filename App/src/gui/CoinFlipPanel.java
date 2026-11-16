@@ -179,8 +179,10 @@ public class CoinFlipPanel extends JPanel {
                     currentFrame = 0;
                     animationTimer.start();
                 } else {
-                    // Paso al tablero de juego con todos los datos recolectados
                     System.out.println("Inicia: " + (empiezaJugador1 ? nombreP1 : nombreP2));
+                    GameWindows gameWindows = new GameWindows(
+                            nombreP1, deckP1, nombreP2, deckP2, empiezaJugador1);
+                    containerRef.add(gameWindows, "GAME_BOARD");
                     CardLayout cl = (CardLayout) containerRef.getLayout();
                     cl.show(containerRef, "GAME_BOARD");
                 }
