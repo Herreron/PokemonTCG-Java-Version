@@ -115,6 +115,66 @@ public final class DeckFactory {
         return createValidatedDeck(deckCards);
     }
 
+    public static Deck createFireDeck() {
+        ArrayList<String> cardNames = new ArrayList<>();
+        cardNames.add("Charmander");
+        cardNames.add("Charmeleon");
+        cardNames.add("Charizard");
+        cardNames.add("Moltres ex");
+        cardNames.add("Growlithe");
+        cardNames.add("Arcanine");
+        cardNames.add("Pocion");
+        cardNames.add("Poke Ball");
+        cardNames.add("Turbo Velocidad");
+        cardNames.add("Investigacion del Profesor");
+        return createRandomDeck(cardNames);
+    }
+
+    public static Deck createWaterDeck() {
+        ArrayList<String> cardNames = new ArrayList<>();
+        cardNames.add("Squirtle");
+        cardNames.add("Wartortle");
+        cardNames.add("Blastoise");
+        cardNames.add("Magikarp");
+        cardNames.add("Gyarados");
+        cardNames.add("Articuno ex");
+        cardNames.add("Psyduck");
+        cardNames.add("Golduck");
+        cardNames.add("Poke Ball");
+        cardNames.add("Misty");
+        return createRandomDeck(cardNames);
+    }
+
+    public static Deck createElectricDeck() {
+        ArrayList<String> cardNames = new ArrayList<>();
+        cardNames.add("Pikachu");
+        cardNames.add("Raichu");
+        cardNames.add("Zapdos ex");
+        cardNames.add("Electabuzz");
+        cardNames.add("Jigglypuff");
+        cardNames.add("Wigglytuff");
+        cardNames.add("Snorlax");
+        cardNames.add("Pocion");
+        cardNames.add("Poke Ball");
+        cardNames.add("Investigacion del Profesor");
+        return createRandomDeck(cardNames);
+    }
+
+    public static Deck createPsychicDeck() {
+        ArrayList<String> cardNames = new ArrayList<>();
+        cardNames.add("Mewtwo ex");
+        cardNames.add("Gastly");
+        cardNames.add("Haunter");
+        cardNames.add("Gengar");
+        cardNames.add("Jigglypuff");
+        cardNames.add("Wigglytuff");
+        cardNames.add("Snorlax");
+        cardNames.add("Pocion");
+        cardNames.add("Turbo Velocidad");
+        cardNames.add("Investigacion del Profesor");
+        return createRandomDeck(cardNames);
+    }
+
     private static AbstractCard createCardByName(String cardName) {
         AbstractCard card = PokemonCatalog.createCardByName(cardName);
         if (card != null) {

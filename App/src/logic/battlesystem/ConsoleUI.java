@@ -50,7 +50,6 @@ public class ConsoleUI {
         System.out.println("-----------------------------------");
     }
 
-//creacion de jugadore y mazos
     private void startQuickMatch() {
         String firstName = "";
         while (running && firstName.isEmpty()) {
@@ -81,16 +80,23 @@ public class ConsoleUI {
             }
         }
 
-        // Creación clásica: la fábrica devuelve un Deck.
-        Deck firstDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
-        Deck secondDeck = DeckFactory.createRandomDeck(getAvailableCardNames());
+        Deck firstDeck = chooseThemeDeck(firstName);
+        if (!running || firstDeck == null) {
+            return;
+        }
 
+        Deck secondDeck = chooseThemeDeck(secondName);
+        if (!running || secondDeck == null) {
+            return;
+        }
+
+        // Crear jugadores y mazos
         Player firstPlayer = createPlayer(firstName, firstDeck);
         Player secondPlayer = createPlayer(secondName, secondDeck);
 
         Game game = new Game(firstPlayer, secondPlayer);
         if (!game.prepareInitialHands()) {
-            System.out.println("No se pudieron repartir las manos iniciales.");
+            System.out.println("Could not deal initial hands.");
             return;
         }
 
@@ -208,6 +214,33 @@ public class ConsoleUI {
         return basicPokemon.get(choice - 1);
     }
 
+    private Deck chooseThemeDeck(String playerName) {
+        System.out.println("\nElije tu tipo de mazo \n" + playerName);
+        System.out.println("1. Mazo de fuego");
+        System.out.println("2. Mazo de agua");
+        System.out.println("3. Mazo electrico");
+        System.out.println("4. Mazo psiquico");
+        System.out.print("Escoje tu opcion: (1-4)");
+
+        int choice = readChoice(1, 4);
+        if (!running) {
+            return null;
+        }
+
+        switch (choice) {
+            case 1:
+                return DeckFactory.createFireDeck();
+            case 2:
+                return DeckFactory.createWaterDeck();
+            case 3:
+                return DeckFactory.createElectricDeck();
+            case 4:
+                return DeckFactory.createPsychicDeck();
+            default:
+                return null;
+        }
+    }
+
 //gestion de turnos y acciones
     private boolean playCurrentTurn(Game game) {
         while (running && !game.isFinished()) {
@@ -241,7 +274,7 @@ public class ConsoleUI {
         System.out.println("\n-----------------------------------");
         System.out.println("Acciones disponibles:");
         System.out.println("1. Adjuntar energia de zona");
-        System.out.println("2. Jugar carta de entrenador");
+        System.out.println("2. Jugar carta de entrenador u objeto");
         System.out.println("3. Colocar Pokemon basico en la banca");
         System.out.println("4. Retirar Pokemon activo");
         System.out.println("5. Atacar");
@@ -367,11 +400,34 @@ public class ConsoleUI {
                 return;
             }
             target = waterPokemon.get(targetChoice - 1);
+        } else if ("Pocion".equals(card.getName())) {
+            ArrayList<PokemonCard> injuredPokemon = new ArrayList<>();
+            for (PokemonCard pokemon : getPokemonInPlay(player)) {
+                if (pokemon.getHealthPoints() < pokemon.getMaxHealthPoints()) {
+                    injuredPokemon.add(pokemon);
+                }
+            }
+            if (injuredPokemon.isEmpty()) {
+                System.out.println("No tienes Pokemon heridos para curar.");
+                return;
+            }
+            System.out.println("Elige el Pokemon que recibira la Pocion:");
+            for (int i = 0; i < injuredPokemon.size(); i++) {
+                System.out.println((i + 1) + ". " + injuredPokemon.get(i));
+            }
+            System.out.println("Seleccion:");
+            int targetChoice = readChoice(1, injuredPokemon.size());
+            if (!running) {
+                return;
+            }
+            target = injuredPokemon.get(targetChoice - 1);
         }
 
         if (player.playPlayableCard(card, game, target)) {
             System.out.println(card.getName() + " se jugo correctamente.");
-        } else if (card instanceof TrainerCard && player.hasPlayedTrainer()) {
+        } else if (card instanceof TrainerCard
+                && ((TrainerCard) card).isSupport()
+                && player.hasPlayedTrainer()) {
             System.out.println("Ya jugaste una carta de entrenador durante este turno.");
         } else {
             System.out.println("No se pudo activar el efecto de " + card.getName() + ".");
@@ -410,7 +466,7 @@ public class ConsoleUI {
         }
 
         Attack chosenAttack = attacks.get(choice - 1);
-        int missingEnergy = chosenAttack.getEnergyCost() - activePokemon.getAttachedEnergy();
+        short missingEnergy = (short) (chosenAttack.getEnergyCost() - activePokemon.getAttachedEnergy());
         if (missingEnergy > 0) {
             System.out.println("Energia insuficiente: " + chosenAttack.getName() + " cuesta "
                     + chosenAttack.getEnergyCost() + " y " + activePokemon.getName() + " tiene "
@@ -425,7 +481,7 @@ public class ConsoleUI {
             return;
         }
 
-        int healthBefore = target.getHealthPoints();
+        short healthBefore = target.getHealthPoints();
         if (player.attackOpponent(opponent, chosenAttack)) {
             System.out.println(activePokemon.getName() + " uso " + chosenAttack.getName()
                     + " y causo " + (healthBefore - target.getHealthPoints()) + " de dano a "
@@ -434,9 +490,29 @@ public class ConsoleUI {
             if (target.isDefeated()) {
                 System.out.println(target.getName() + " fue derrotado. Ganas "
                         + target.calculatePrizePoints() + " punto(s) de premio.");
+                if (!game.checkWinner() && !opponent.getBank().isEmpty()) {
+                    promotePokemon(opponent);
+                }
             }
         } else {
             System.out.println("No se pudo atacar.");
+        }
+    }
+
+    private void promotePokemon(Player player) {
+        ArrayList<PokemonCard> bench = player.getBank();
+        System.out.println("\n" + player.getName() + ", elige el Pokemon activo:");
+        for (int i = 0; i < bench.size(); i++) {
+            System.out.println((i + 1) + ". " + bench.get(i));
+        }
+
+        int choice = readChoice(1, bench.size());
+        if (!running) {
+            return;
+        }
+        PokemonCard selectedPokemon = bench.get(choice - 1);
+        if (player.promotePokemon(selectedPokemon)) {
+            System.out.println(selectedPokemon.getName() + " ahora es el Pokemon activo.");
         }
     }
 
@@ -616,7 +692,6 @@ public class ConsoleUI {
         Player winner = game.getWinner();
         Player loser = game.getOpponentOf(winner);
 
-        System.out.println("\n===================================");
         switch (game.getVictoryReason()) {
             case NO_POKEMON_IN_PLAY:
                 System.out.println(loser.getName()
@@ -635,7 +710,6 @@ public class ConsoleUI {
                 break;
         }
         System.out.println("¡Felicidades " + winner.getName() + ", ganas el duelo!");
-        System.out.println("===================================\n");
     }
 
 //captura de entrada y manejo de errores
@@ -687,7 +761,8 @@ public class ConsoleUI {
     }
 
     private void clearConsole() {
-        if (System.console() != null && !System.getProperty("os.name").startsWith("Windows")) {
+        if (!System.getProperty("os.name").startsWith("Windows")) {
+            System.out.print("\033[H\033[2J");
             System.out.flush();
         } else {
             for (int line = 0; line < 40; line++) {
@@ -695,4 +770,5 @@ public class ConsoleUI {
             }
         }
     }
+
 }

@@ -4,14 +4,14 @@ public class Attack {
 
     private final String name;
     private final Type energyType;
-    private final int energyCost;
-    private final int baseDamage;
+    private final byte energyCost;
+    private final short baseDamage;
 
-    public Attack(String name, Type energyType, int energyCost, int baseDamage) {
+    public Attack(String name, Type energyType, byte energyCost, short baseDamage) {
         this.name = name;
         this.energyType = energyType;
-        this.energyCost = Math.max(0, energyCost);
-        this.baseDamage = Math.max(0, baseDamage);
+        this.energyCost = (byte) Math.max(0, energyCost);
+        this.baseDamage = (short) Math.max(0, baseDamage);
     }
 
     public String getName() {
@@ -22,11 +22,11 @@ public class Attack {
         return energyType;
     }
 
-    public int getEnergyCost() {
+    public byte getEnergyCost() {
         return energyCost;
     }
 
-    public int getBaseDamage() {
+    public short getBaseDamage() {
         return baseDamage;
     }
 

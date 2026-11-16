@@ -74,9 +74,8 @@ public class Hand {
         return cardsHand.size(); //metodo de arraylist
     }
 
-    /**
-     * Verifica si la mano contiene al menos un Pokemon basico.
-     */
+    
+    //Verifica si la mano contiene al menos un Pokemon basico.
     public boolean hasBasicPokemon() {
         for (AbstractCard card : cardsHand) {
             if (card instanceof PokemonCard) {
@@ -89,9 +88,6 @@ public class Hand {
         return false;
     }
 
-    /**
-     * Retorna una lista con todos los Pokemon basicos presentes en la mano.
-     */
     public ArrayList<PokemonCard> getBasicPokemonCards() {
         ArrayList<PokemonCard> basicPokemons = new ArrayList<>();
         for (AbstractCard card : cardsHand) {
@@ -105,9 +101,7 @@ public class Hand {
         return basicPokemons;
     }
 
-    /**
-     * Limpia la mano y retorna todas las cartas descartadas.
-     */
+   
     public ArrayList<AbstractCard> discardAll() {
         ArrayList<AbstractCard> discarded = new ArrayList<>(cardsHand); //crea una copia de la lista actual
         cardsHand.clear(); //metodo de arraylist para vaciar la mano original
