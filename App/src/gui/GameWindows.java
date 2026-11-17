@@ -113,7 +113,6 @@ public class GameWindows extends JPanel {
     private List<VisualCardData> playerTwoHand = new ArrayList<>();
 
     private String currentMode = MODE_NONE;
-    private int selectedCardIndex = -1;
     private JLabel selectedCardLabel = null;
 
     // Modelo del juego: aqui viven las reglas, la ventana solo lo consulta
@@ -721,7 +720,6 @@ public class GameWindows extends JPanel {
 
     private void clearSelection() {
         currentMode = MODE_NONE;
-        selectedCardIndex = -1;
         if (selectedCardLabel != null) {
             selectedCardLabel.setBorder(null);
             selectedCardLabel = null;
