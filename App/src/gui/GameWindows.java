@@ -31,6 +31,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
+import logic.battlesystem.Deck;
+import logic.battlesystem.DeckFactory;
+import logic.battlesystem.Game;
+import logic.battlesystem.Hand;
+import logic.battlesystem.Player;
+import logic.cards.AbstractCard;
+import logic.cards.Attack;
+import logic.cards.PokemonCard;
+import logic.cards.TrainerCard;
+import logic.cards.Type;
 
 public class GameWindows extends JPanel {
 
@@ -47,10 +57,8 @@ public class GameWindows extends JPanel {
 
     // Modos de acción
     private static final String MODE_NONE = "NONE";
-    private static final String MODE_HAND_CARD = "HAND_CARD";
     private static final String MODE_ENERGY = "ENERGY";
     private static final String MODE_EVOLVE = "EVOLVE";
-    private static final String MODE_RETREAT = "RETREAT";
 
     // Componentes de la interfaz
     private Image backgroundImage;
@@ -100,7 +108,6 @@ public class GameWindows extends JPanel {
     private int currentPlayer;
     private boolean fieldEnergyAvailable = true;
     private String currentFieldEnergy = "Fire";
-    private boolean mustPromoteActive = false;
 
     private List<VisualCardData> playerOneHand = new ArrayList<>();
     private List<VisualCardData> playerTwoHand = new ArrayList<>();
@@ -108,6 +115,12 @@ public class GameWindows extends JPanel {
     private String currentMode = MODE_NONE;
     private int selectedCardIndex = -1;
     private JLabel selectedCardLabel = null;
+
+    // Modelo del juego: aqui viven las reglas, la ventana solo lo consulta
+    private Game game;
+    private Player playerOne;
+    private Player playerTwo;
+    private boolean playerOneStarts;
 
     public GameWindows(String playerOneName, String playerOneDeck, String playerTwoName, String playerTwoDeck, boolean playerOneStarts) {
         this.playerOneName = playerOneName;
@@ -122,10 +135,215 @@ public class GameWindows extends JPanel {
             this.currentFieldEnergy = mapDeckToEnergy(playerTwoDeck);
         }
 
+        this.playerOneStarts = playerOneStarts;
         loadBackground();
         initComponents();
-        cargarDatosPrueba();
         BackgroundMusic.playBattle();
+    }
+
+    // Empieza la partida. Se llama después de mostrar el tablero en la ventana,
+    // así las ventanitas de preparación quedan encima del juego y no se esconden
+    public void startMatch() {
+        setupMatch(playerOneStarts);
+        refreshBoardFromGame();
+    }
+
+    // Crea la partida real con los nombres y mazos elegidos en la ventana de inicio
+    private void setupMatch(boolean playerOneStarts) {
+        playerOne = new Player(playerOneName, createDeckFromName(playerOneDeck), new Hand(),
+                new ArrayList<>(), null, (byte) 0, (byte) 0);
+        playerTwo = new Player(playerTwoName, createDeckFromName(playerTwoDeck), new Hand(),
+                new ArrayList<>(), null, (byte) 0, (byte) 0);
+        game = new Game(playerOne, playerTwo);
+
+        // Reparte 5 cartas a cada uno; el mulligan lo hace el modelo (Deck)
+        if (!game.prepareInitialHands()) {
+            JOptionPane.showMessageDialog(this, "No se pudieron repartir las manos iniciales.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Cada jugador coloca su Pokémon activo y su banca (RF2)
+        chooseInitialField(playerOne);
+        chooseInitialField(playerTwo);
+
+        // El resultado de la moneda decide quién empieza
+        game.setCurrentPlayer(playerOneStarts ? playerOne : playerTwo);
+        game.startTurn();
+    }
+
+    // Traduce el nombre del mazo del JComboBox al mazo del modelo
+    private Deck createDeckFromName(String deckName) {
+        if (deckName == null) {
+            return null;
+        }
+        switch (deckName) {
+            case "Fuego":
+                return DeckFactory.createFireDeck();
+            case "Agua":
+                return DeckFactory.createWaterDeck();
+            case "Eléctrico":
+                return DeckFactory.createElectricDeck();
+            case "Psíquico":
+                return DeckFactory.createPsychicDeck();
+            default:
+                return null;
+        }
+    }
+
+    // Pide al jugador elegir su Pokémon activo y hasta 2 Pokémon para la banca
+    private void chooseInitialField(Player player) {
+        JOptionPane.showMessageDialog(this,
+                "Preparación de " + player.getName() + ".\nQue el otro jugador no mire la pantalla.",
+                "Preparación", JOptionPane.INFORMATION_MESSAGE);
+
+        // Activo obligatorio: se repite hasta que elija uno
+        PokemonCard active = null;
+        while (active == null) {
+            active = askBasicPokemon(player, "Elige tu Pokémon activo:", false);
+        }
+        player.selectInitialActivePokemon(active);
+
+        // Banca opcional: hasta 2 Pokémon o hasta que el jugador termine
+        while (player.getBank().size() < 2 && !player.getHand().getBasicPokemonCards().isEmpty()) {
+            PokemonCard benchPokemon = askBasicPokemon(player, "¿Quieres poner un Pokémon en la banca?", true);
+            if (benchPokemon == null) {
+                break;
+            }
+            player.placeOnBench(benchPokemon);
+        }
+    }
+
+    // Muestra los Pokémon básicos de la mano como botones y devuelve el elegido
+    private PokemonCard askBasicPokemon(Player player, String message, boolean allowFinish) {
+        ArrayList<PokemonCard> basics = player.getHand().getBasicPokemonCards();
+        int optionCount = allowFinish ? basics.size() + 1 : basics.size();
+        String[] options = new String[optionCount];
+        for (int i = 0; i < basics.size(); i++) {
+            PokemonCard pokemon = basics.get(i);
+            options[i] = pokemon.getName() + " (" + pokemon.getHealthPoints() + " PS)";
+        }
+        if (allowFinish) {
+            options[optionCount - 1] = "Terminar";
+        }
+
+        int choice = JOptionPane.showOptionDialog(this, message, player.getName(),
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        if (choice < 0 || choice >= basics.size()) {
+            return null;
+        }
+        return basics.get(choice);
+    }
+
+    // Lee el estado del modelo y lo pinta en el tablero
+    private void refreshBoardFromGame() {
+        if (game == null || game.getCurrentPlayer() == null) {
+            return;
+        }
+        loadPlayerField(1, playerOne, playerOneDeck);
+        loadPlayerField(2, playerTwo, playerTwoDeck);
+
+        currentPlayer = (game.getCurrentPlayer() == playerOne) ? 1 : 2;
+        currentFieldEnergy = mapDeckToEnergy(getCurrentPlayerDeck());
+        fieldEnergyAvailable = game.getCurrentPlayer().getAvailableEnergy() > 0;
+        clearSelection();
+        updateTurnVisualState();
+    }
+
+    // Pasa el activo, la banca, la mano y los puntos de un jugador a la ventana
+    private void loadPlayerField(int playerNumber, Player player, String deckName) {
+        String energyType = mapDeckToEnergy(deckName);
+        ArrayList<PokemonCard> bank = player.getBank();
+
+        setPokemonSlot(playerNumber, 0, toVisualPokemon(player.getActivePokemon(), energyType));
+        setPokemonSlot(playerNumber, 1, bank.size() > 0 ? toVisualPokemon(bank.get(0), energyType) : null);
+        setPokemonSlot(playerNumber, 2, bank.size() > 1 ? toVisualPokemon(bank.get(1), energyType) : null);
+        setPlayerHand(playerNumber, toVisualHand(player.getHand()));
+        setPlayerPoints(playerNumber, player.getPrizePoints());
+    }
+
+    // Convierte una carta Pokémon del modelo en los datos que dibuja la ventana
+    private VisualPokemonData toVisualPokemon(PokemonCard pokemon, String energyType) {
+        if (pokemon == null) {
+            return null;
+        }
+        ArrayList<Attack> attackList = pokemon.getAttacks();
+        String[] attackNames = new String[attackList.size()];
+        int[] attackDamages = new int[attackList.size()];
+        int[] energyCosts = new int[attackList.size()];
+        for (int i = 0; i < attackList.size(); i++) {
+            attackNames[i] = attackList.get(i).getName();
+            attackDamages[i] = attackList.get(i).getBaseDamage();
+            energyCosts[i] = attackList.get(i).getEnergyCost();
+        }
+
+        VisualPokemonData data = new VisualPokemonData(pokemon.getName(), buildSpritePath(pokemon), null,
+                pokemon.getHealthPoints(), pokemon.getMaxHealthPoints(), pokemon.getRetreatCost(),
+                attackNames, attackDamages, energyCosts);
+        data.energyType = energyType;
+        data.energyCount = pokemon.getAttachedEnergy();
+        return data;
+    }
+
+    // Convierte la mano del modelo en la lista de cartas que dibuja la ventana
+    private List<VisualCardData> toVisualHand(Hand hand) {
+        List<VisualCardData> visualHand = new ArrayList<>();
+        for (AbstractCard card : hand.getCards()) {
+            if (card instanceof PokemonCard) {
+                PokemonCard pokemon = (PokemonCard) card;
+                VisualPokemonData pokemonData = toVisualPokemon(pokemon, "");
+                visualHand.add(new VisualCardData(pokemon.getName(), "POKEMON", pokemonData.spritePath, null,
+                        pokemonData.currentHp, pokemonData.maxHp, pokemonData.retreatCost,
+                        pokemon.getEvolvesFrom(), pokemonData.attacks, pokemonData.attackDamages,
+                        pokemonData.energyCosts));
+            } else {
+                String category = (card instanceof TrainerCard) ? "ENTRENADOR" : "OBJETO";
+                visualHand.add(new VisualCardData(card.getName(), category, buildSpritePath(card), null,
+                        0, 0, 0, null, null, null, null));
+            }
+        }
+        return visualHand;
+    }
+
+    // Arma la ruta de la imagen de cada carta (temporal hasta que las cartas traigan su propia ruta)
+    private String buildSpritePath(AbstractCard card) {
+        if (card instanceof PokemonCard) {
+            PokemonCard pokemon = (PokemonCard) card;
+            String folder;
+            switch (pokemon.getType()) {
+                case FIRE:
+                    folder = "fire";
+                    break;
+                case WATER:
+                    folder = "water";
+                    break;
+                case ELECTRIC:
+                    folder = "electric";
+                    break;
+                case PSYCHIC:
+                    folder = "psico";
+                    break;
+                default:
+                    folder = "uncolored";
+                    break;
+            }
+            String fileName = pokemon.getName().toLowerCase().replace(" ex", "");
+            return "/media/images/pokemons/" + folder + "/" + fileName + ".png";
+        }
+        switch (card.getName()) {
+            case "Pocion":
+                return "/media/images/objects/potion.png";
+            case "Poke Ball":
+                return "/media/images/objects/pokeball.png";
+            case "Turbo Velocidad":
+                return "/media/images/objects/x-speed.png";
+            case "Investigacion del Profesor":
+                return "/media/images/trainers/oak.png";
+            case "Misty":
+                return "/media/images/trainers/misty.png";
+            default:
+                return null;
+        }
     }
 
     private void loadBackground() {
@@ -323,9 +541,11 @@ public class GameWindows extends JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (gameFinished) return;
-                if (validatePromotionBlock()) return;
-                if (!fieldEnergyAvailable) {
-                    JOptionPane.showMessageDialog(GameWindows.this, "Ya usaste la energía del campo en este turno.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                // Si ya no queda energía, el modelo lo explica antes de elegir Pokémon
+                Player current = game.getCurrentPlayer();
+                String error = current.getAttachEnergyError(current.getActivePokemon());
+                if (error != null && current.getAvailableEnergy() <= 0) {
+                    showWarning(error);
                     return;
                 }
                 toggleActionMode(MODE_ENERGY, energyButton);
@@ -336,7 +556,6 @@ public class GameWindows extends JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (gameFinished) return;
-                if (validatePromotionBlock()) return;
                 toggleActionMode(MODE_EVOLVE, evolveButton);
                 if (currentMode.equals(MODE_EVOLVE)) {
                     JOptionPane.showMessageDialog(GameWindows.this, "Selecciona un Pokémon de tu equipo para evolucionarlo.", "Evolucionar", JOptionPane.INFORMATION_MESSAGE);
@@ -348,8 +567,8 @@ public class GameWindows extends JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (gameFinished) return;
-                if (validatePromotionBlock()) return;
-                toggleActionMode(MODE_RETREAT, retreatButton);
+                clearSelection();
+                retreatActivePokemon();
             }
         });
 
@@ -357,72 +576,8 @@ public class GameWindows extends JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (gameFinished) return;
-                if (validatePromotionBlock()) return;
                 clearSelection();
-
-                PokemonSlotPanel attackerSlot = getCurrentActiveSlot();
-                PokemonSlotPanel defenderSlot;
-                if (currentPlayer == 1) {
-                    defenderSlot = playerTwoActiveSlot;
-                } else {
-                    defenderSlot = playerOneActiveSlot;
-                }
-
-                if (attackerSlot.data == null) {
-                    JOptionPane.showMessageDialog(GameWindows.this, "No tienes un Pokémon activo para atacar.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                if (defenderSlot.data == null) {
-                    JOptionPane.showMessageDialog(GameWindows.this, "El rival no tiene un Pokémon activo.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                VisualPokemonData attacker = attackerSlot.data;
-                if (attacker.attacks == null || attacker.attacks.length == 0) {
-                    JOptionPane.showMessageDialog(GameWindows.this, "Este Pokémon no tiene ataques disponibles.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                String[] options = new String[attacker.attacks.length];
-                for (int i = 0; i < attacker.attacks.length; i++) {
-                    options[i] = attacker.attacks[i] + " (" + attacker.attackDamages[i] + " de daño - Costo: " + attacker.energyCosts[i] + ")";
-                }
-
-                int choice = JOptionPane.showOptionDialog(
-                        GameWindows.this,
-                        "Selecciona el ataque de " + attacker.name + ":",
-                        "Atacar",
-                        JOptionPane.DEFAULT_OPTION,
-                        JOptionPane.PLAIN_MESSAGE,
-                        null,
-                        options,
-                        options[0]);
-
-                if (choice >= 0) {
-                    int cost = attacker.energyCosts[choice];
-                    if (attacker.energyCount < cost) {
-                        JOptionPane.showMessageDialog(GameWindows.this, "Energía insuficiente para realizar este ataque.", "Energía insuficiente", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
-                    playAudio(attacker.audioPath);
-                    int damage = attacker.attackDamages[choice];
-                    defenderSlot.data.currentHp = Math.max(0, defenderSlot.data.currentHp - damage);
-                    defenderSlot.refresh();
-
-                    if (defenderSlot.data.currentHp == 0) {
-                        JOptionPane.showMessageDialog(GameWindows.this, defenderSlot.data.name + " ha sido debilitado.", "K.O.", JOptionPane.INFORMATION_MESSAGE);
-                        defenderSlot.setPokemon(null);
-                        if (currentPlayer == 1) {
-                            playerOnePoints++;
-                        } else {
-                            playerTwoPoints++;
-                        }
-                        updateScoreMarkers();
-                        if (playerOnePoints >= 3 || playerTwoPoints >= 3) {
-                            finishGame(playerOnePoints >= 3 ? playerOneName : playerTwoName);
-                        }
-                    }
-                }
+                attackWithActivePokemon();
             }
         });
 
@@ -430,33 +585,145 @@ public class GameWindows extends JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (gameFinished) return;
-                if (validatePromotionBlock()) return;
 
-                PokemonSlotPanel currentActiveSlot = getCurrentActiveSlot();
-                if (currentActiveSlot.data == null) {
+                if (game.getCurrentPlayer().getActivePokemon() == null) {
                     JOptionPane.showMessageDialog(GameWindows.this, "El juego no puede seguir si tu puesto activo está vacío.", "Puesto activo vacío", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
                 clearSelection();
-                if (currentPlayer == 1) {
-                    currentPlayer = 2;
-                } else {
-                    currentPlayer = 1;
+                // El modelo cambia de jugador y empieza su turno (roba carta y recibe energía)
+                game.endTurn();
+                boolean turnStarted = game.startTurn();
+                refreshBoardFromGame();
+
+                // Si no pudo robar carta o alguien ya ganó, termina la partida
+                if (!turnStarted && game.isFinished() && game.getWinner() != null) {
+                    finishGame(game.getWinner().getName());
                 }
-                fieldEnergyAvailable = true;
-                currentFieldEnergy = mapDeckToEnergy(getCurrentPlayerDeck());
-                updateTurnVisualState();
             }
         });
     }
 
-    private boolean validatePromotionBlock() {
-        if (mustPromoteActive) {
-            JOptionPane.showMessageDialog(this, "Debes seleccionar un Pokémon de tu banca para pasarlo a activo.", "Acción obligatoria", JOptionPane.WARNING_MESSAGE);
-            return true;
+    // Muestra el aviso de por qué una acción no se puede hacer
+    private void showWarning(String message) {
+        JOptionPane.showMessageDialog(this, message, "Aviso", JOptionPane.WARNING_MESSAGE);
+    }
+
+    // Busca en el modelo el Pokémon que corresponde a un espacio del tablero
+    private PokemonCard getPokemonInSlot(PokemonSlotPanel slot) {
+        Player owner = (slot.owner == 1) ? playerOne : playerTwo;
+        if (slot.slotType == 0) {
+            return owner.getActivePokemon();
         }
-        return false;
+        int benchIndex = slot.slotType - 1;
+        if (benchIndex < owner.getBank().size()) {
+            return owner.getBank().get(benchIndex);
+        }
+        return null;
+    }
+
+    // Ataque: el jugador elige el ataque y el modelo calcula daño, debilidad y puntos
+    private void attackWithActivePokemon() {
+        Player current = game.getCurrentPlayer();
+        Player opponent = game.getOpponentOf(current);
+        PokemonCard attacker = current.getActivePokemon();
+        if (attacker == null || attacker.getAttacks().isEmpty()) {
+            showWarning(current.getAttackError(opponent, null));
+            return;
+        }
+
+        ArrayList<Attack> attacks = attacker.getAttacks();
+        String[] options = new String[attacks.size()];
+        for (int i = 0; i < attacks.size(); i++) {
+            Attack attack = attacks.get(i);
+            options[i] = attack.getName() + " (" + attack.getBaseDamage() + " de daño - Costo: " + attack.getEnergyCost() + ")";
+        }
+        int choice = JOptionPane.showOptionDialog(this, "Selecciona el ataque de " + attacker.getName() + ":",
+                "Atacar", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        if (choice < 0) {
+            return;
+        }
+
+        Attack attack = attacks.get(choice);
+        String error = current.getAttackError(opponent, attack);
+        if (error != null) {
+            showWarning(error);
+            return;
+        }
+
+        PokemonCard defender = opponent.getActivePokemon();
+        // El modelo calcula el daño (base + debilidad) antes de atacar
+        int damage = current.getAttackDamage(opponent, attack);
+        int pointsBefore = current.getPrizePoints();
+        current.attackOpponent(opponent, attack);
+
+        String result = attacker.getName() + " usó " + attack.getName() + " y le hizo " + damage + " de daño a " + defender.getName() + ".";
+        if (damage > attack.getBaseDamage()) {
+            result += "\n¡Es débil a este tipo: +" + (damage - attack.getBaseDamage()) + " de daño!";
+        }
+        if (defender.isDefeated()) {
+            int pointsWon = current.getPrizePoints() - pointsBefore;
+            result += "\n" + defender.getName() + " fue derrotado. " + current.getName() + " gana " + pointsWon + " punto(s) de premio.";
+        }
+        JOptionPane.showMessageDialog(this, result, "Ataque", JOptionPane.INFORMATION_MESSAGE);
+
+        refreshBoardFromGame();
+        if (game.checkWinner()) {
+            finishGame(game.getWinner().getName());
+            return;
+        }
+        // Si el rival se quedó sin activo, debe subir uno de su banca
+        if (opponent.getActivePokemon() == null) {
+            promoteFromBench(opponent);
+            refreshBoardFromGame();
+        }
+    }
+
+    // El jugador elige qué Pokémon de su banca pasa a ser el activo (obligatorio)
+    private void promoteFromBench(Player player) {
+        ArrayList<PokemonCard> bench = player.getBank();
+        String[] options = new String[bench.size()];
+        for (int i = 0; i < bench.size(); i++) {
+            options[i] = bench.get(i).getName() + " (" + bench.get(i).getHealthPoints() + " PS)";
+        }
+        int choice = -1;
+        while (choice < 0) {
+            choice = JOptionPane.showOptionDialog(this, player.getName() + ", elige tu nuevo Pokémon activo:",
+                    "Nuevo Pokémon activo", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        }
+        player.promotePokemon(bench.get(choice));
+    }
+
+    // Retirada: el jugador elige el reemplazo y el modelo cobra el costo en energía
+    private void retreatActivePokemon() {
+        Player current = game.getCurrentPlayer();
+        ArrayList<PokemonCard> bench = current.getBank();
+        if (bench.isEmpty()) {
+            showWarning(current.getRetreatError(null));
+            return;
+        }
+
+        String[] options = new String[bench.size()];
+        for (int i = 0; i < bench.size(); i++) {
+            options[i] = bench.get(i).getName() + " (" + bench.get(i).getHealthPoints() + " PS)";
+        }
+        int choice = JOptionPane.showOptionDialog(this,
+                "¿Qué Pokémon de la banca reemplaza a " + current.getActivePokemon().getName()
+                        + "? (costo: " + current.getActiveRetreatCost() + " energía)",
+                "Retirada", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        if (choice < 0) {
+            return;
+        }
+
+        PokemonCard replacement = bench.get(choice);
+        String error = current.getRetreatError(replacement);
+        if (error != null) {
+            showWarning(error);
+            return;
+        }
+        current.retreatActive(replacement);
+        refreshBoardFromGame();
     }
 
     private void toggleActionMode(String newMode, JButton targetButton) {
@@ -481,172 +748,56 @@ public class GameWindows extends JPanel {
         retreatButton.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
     }
 
+    // Clic sobre un Pokémon del tablero: según el modo, adjunta energía o evoluciona
     private void handleFieldSlotClick(PokemonSlotPanel slot) {
         if (gameFinished) return;
+        Player current = game.getCurrentPlayer();
         boolean isAlly = (slot.owner == currentPlayer);
+        PokemonCard pokemon = getPokemonInSlot(slot);
 
-        // Promoción obligatoria tras retirada o K.O.
-        if (mustPromoteActive) {
-            if (!isAlly || slot.slotType == 0 || slot.data == null) {
-                JOptionPane.showMessageDialog(this, "Selecciona uno de tus Pokémon en banca para moverlo a activo.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            PokemonSlotPanel activeSlot = getCurrentActiveSlot();
-            activeSlot.setPokemon(slot.data);
-            slot.setPokemon(null);
-            mustPromoteActive = false;
-            return;
-        }
-
-        // Modo energía
         if (currentMode.equals(MODE_ENERGY)) {
-            if (!isAlly) {
-                JOptionPane.showMessageDialog(this, "No puedes adjuntar energía a un Pokémon enemigo.", "Acción inválida", JOptionPane.WARNING_MESSAGE);
+            if (!isAlly || pokemon == null) {
+                showWarning("Elige uno de tus Pokémon para adjuntarle la energía.");
                 return;
             }
-            if (slot.data == null) {
-                JOptionPane.showMessageDialog(this, "No hay ningún Pokémon en este espacio.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                return;
+            String error = current.getAttachEnergyError(pokemon);
+            if (error != null) {
+                showWarning(error);
+            } else {
+                current.attachEnergy(pokemon);
             }
-            slot.data.energyType = currentFieldEnergy;
-            slot.data.energyCount++;
-            slot.refresh();
-            fieldEnergyAvailable = false;
-            updateFieldEnergyIcon();
-            clearSelection();
+            refreshBoardFromGame();
             return;
         }
 
-        // Modo de evolucion
         if (currentMode.equals(MODE_EVOLVE)) {
-            if (!isAlly) {
-                JOptionPane.showMessageDialog(this, "No puedes evolucionar Pokémon enemigos.", "Acción inválida", JOptionPane.WARNING_MESSAGE);
+            if (!isAlly || pokemon == null) {
+                showWarning("Elige uno de tus Pokémon para evolucionarlo.");
                 return;
             }
-            if (slot.data == null) {
-                JOptionPane.showMessageDialog(this, "No hay ningún Pokémon en este espacio.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            List<VisualCardData> currentHand = getCurrentHand();
-            int evolutionIndex = -1;
-            for (int i = 0; i < currentHand.size(); i++) {
-                VisualCardData card = currentHand.get(i);
-                if (card.category.equals("POKEMON") && card.evolvesFrom != null && card.evolvesFrom.equalsIgnoreCase(slot.data.name)) {
-                    evolutionIndex = i;
+            // Busca en la mano una carta que diga "evoluciona de" este Pokémon
+            PokemonCard evolution = null;
+            for (AbstractCard card : current.getHand().getCards()) {
+                if (card instanceof PokemonCard && pokemon.getName().equals(((PokemonCard) card).getEvolvesFrom())) {
+                    evolution = (PokemonCard) card;
                     break;
                 }
             }
-            if (evolutionIndex == -1) {
-                JOptionPane.showMessageDialog(this, "No tienes la evolución de " + slot.data.name + " en tu mano.", "No cumple la condición", JOptionPane.WARNING_MESSAGE);
+            if (evolution == null) {
+                showWarning("No tienes en la mano una evolución de " + pokemon.getName() + ".");
                 clearSelection();
                 return;
             }
-            VisualCardData evolution = currentHand.remove(evolutionIndex);
-            slot.data.name = evolution.name;
-            slot.data.maxHp = evolution.maxHp;
-            slot.data.currentHp = evolution.maxHp;
-            slot.data.spritePath = evolution.spritePath;
-            slot.data.audioPath = evolution.audioPath;
-            slot.data.retreatCost = evolution.retreatCost;
-            slot.data.attacks = evolution.attacks;
-            slot.data.attackDamages = evolution.attackDamages;
-            slot.data.energyCosts = evolution.energyCosts;
-            slot.refresh();
-            playAudio(slot.data.audioPath);
-            refreshHandVisual();
-            clearSelection();
+            String error = current.getEvolveError(evolution, pokemon);
+            if (error != null) {
+                showWarning(error);
+            } else {
+                current.evolvePokemon(evolution, pokemon);
+                JOptionPane.showMessageDialog(this, "¡" + pokemon.getName() + " evolucionó a " + evolution.getName() + "!",
+                        "Evolución", JOptionPane.INFORMATION_MESSAGE);
+            }
+            refreshBoardFromGame();
             return;
-        }
-
-        // Modo de retirada
-        if (currentMode.equals(MODE_RETREAT)) {
-            if (!isAlly || slot.slotType != 0 || slot.data == null) {
-                JOptionPane.showMessageDialog(this, "Selecciona tu Pokémon activo para retirarlo.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            if (slot.data.energyCount < slot.data.retreatCost) {
-                JOptionPane.showMessageDialog(this, "Energía insuficiente para retirarse (costo: " + slot.data.retreatCost + ").", "No puede retirarse", JOptionPane.WARNING_MESSAGE);
-                clearSelection();
-                return;
-            }
-            VisualPokemonData withdrawnPokemon = slot.data;
-            withdrawnPokemon.energyCount = 0;
-            withdrawnPokemon.energyType = "";
-
-            VisualCardData returnedCard = new VisualCardData(
-                    withdrawnPokemon.name, "POKEMON", withdrawnPokemon.spritePath, withdrawnPokemon.audioPath,
-                    withdrawnPokemon.currentHp, withdrawnPokemon.maxHp, withdrawnPokemon.retreatCost, null,
-                    withdrawnPokemon.attacks, withdrawnPokemon.attackDamages, withdrawnPokemon.energyCosts);
-
-            List<VisualCardData> currentHand = getCurrentHand();
-            currentHand.add(returnedCard);
-            slot.setPokemon(null);
-            refreshHandVisual();
-            clearSelection();
-
-            if (hasBenchPokemon(currentPlayer)) {
-                mustPromoteActive = true;
-                JOptionPane.showMessageDialog(this, "Selecciona un Pokémon de tu banca para ocupar el puesto activo.", "Promover Pokémon", JOptionPane.INFORMATION_MESSAGE);
-            }
-            return;
-        }
-
-        // Carta seleccionada desde la mano
-        if (currentMode.equals(MODE_HAND_CARD) && selectedCardIndex >= 0) {
-            List<VisualCardData> currentHand = getCurrentHand();
-            VisualCardData card = currentHand.get(selectedCardIndex);
-
-            if (card.category.equals("OBJETO")) {
-                if (!isAlly) {
-                    JOptionPane.showMessageDialog(this, "No puedes curar a un Pokémon enemigo.", "Acción inválida", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                if (slot.data == null) {
-                    JOptionPane.showMessageDialog(this, "Selecciona un Pokémon válido.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                int confirmation = JOptionPane.showConfirmDialog(this, "¿Deseas usar " + card.name + " en " + slot.data.name + "?", "Confirmar objeto", JOptionPane.YES_NO_OPTION);
-                if (confirmation == JOptionPane.YES_OPTION) {
-                    slot.data.currentHp = Math.min(slot.data.maxHp, slot.data.currentHp + 20);
-                    slot.refresh();
-                    currentHand.remove(selectedCardIndex);
-                    refreshHandVisual();
-                }
-                clearSelection();
-                return;
-            }
-
-            if (card.category.equals("POKEMON")) {
-                if (!isAlly) {
-                    JOptionPane.showMessageDialog(this, "No puedes colocar cartas en el campo rival.", "Acción inválida", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                if (slot.data != null) {
-                    JOptionPane.showMessageDialog(this, "Este espacio ya está ocupado.", "Espacio ocupado", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                PokemonSlotPanel activeSlot = getCurrentActiveSlot();
-                if (activeSlot.data == null && slot.slotType != 0) {
-                    JOptionPane.showMessageDialog(this, "Debes colocar primero un Pokémon en el puesto activo.", "Pokémon activo obligatorio", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                if (card.evolvesFrom != null) {
-                    JOptionPane.showMessageDialog(this, "No puedes bajar una evolución directamente sin su fase previa.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-
-                VisualPokemonData newPokemon = new VisualPokemonData(
-                        card.name, card.spritePath, card.audioPath,
-                        card.currentHp, card.maxHp, card.retreatCost,
-                        card.attacks, card.attackDamages, card.energyCosts);
-
-                slot.setPokemon(newPokemon);
-                playAudio(newPokemon.audioPath);
-                currentHand.remove(selectedCardIndex);
-                refreshHandVisual();
-                clearSelection();
-                return;
-            }
         }
 
         // Reproducir el grito al hacer clic en un Pokémon
@@ -655,33 +806,86 @@ public class GameWindows extends JPanel {
         }
     }
 
+    // Clic sobre una carta de la mano: Pokémon básico a la banca o carta de entrenador
     private void handleHandCardClick(int index, JLabel cardLabel) {
         if (gameFinished) return;
-        if (validatePromotionBlock()) return;
-
-        List<VisualCardData> currentHand = getCurrentHand();
-        VisualCardData card = currentHand.get(index);
-
-        if (card.category.equals("ENTRENADOR")) {
-            clearSelection();
-            int confirmation = JOptionPane.showConfirmDialog(this, "¿Deseas activar la carta de entrenador " + card.name + "?", "Confirmar entrenador", JOptionPane.YES_NO_OPTION);
-            if (confirmation == JOptionPane.YES_OPTION) {
-                currentHand.remove(index);
-                refreshHandVisual();
-            }
-            return;
-        }
-
-        if (currentMode.equals(MODE_HAND_CARD) && selectedCardIndex == index) {
-            clearSelection();
-            return;
-        }
-
         clearSelection();
-        currentMode = MODE_HAND_CARD;
-        selectedCardIndex = index;
-        selectedCardLabel = cardLabel;
-        cardLabel.setBorder(BorderFactory.createLineBorder(SELECTION_BORDER_COLOR, 3));
+        Player current = game.getCurrentPlayer();
+        AbstractCard card = current.getHand().getCard(index);
+        if (card == null) {
+            return;
+        }
+
+        if (card instanceof PokemonCard) {
+            PokemonCard pokemon = (PokemonCard) card;
+            if (!pokemon.isBasicPokemon()) {
+                showWarning("Para usar " + pokemon.getName() + ", toca el botón Evolucionar y luego el Pokémon que quieres evolucionar.");
+                return;
+            }
+            int confirmation = JOptionPane.showConfirmDialog(this, "¿Poner a " + pokemon.getName() + " en la banca?",
+                    "Banca", JOptionPane.YES_NO_OPTION);
+            if (confirmation != JOptionPane.YES_OPTION) {
+                return;
+            }
+            String error = current.getPlaceOnBenchError(pokemon);
+            if (error != null) {
+                showWarning(error);
+                return;
+            }
+            current.placeOnBench(pokemon);
+            refreshBoardFromGame();
+            return;
+        }
+
+        // Cartas de entrenador y objetos
+        int confirmation = JOptionPane.showConfirmDialog(this, "¿Deseas usar " + card.getName() + "?",
+                "Usar carta", JOptionPane.YES_NO_OPTION);
+        if (confirmation != JOptionPane.YES_OPTION) {
+            return;
+        }
+        String error = current.getPlayCardError(card);
+        if (error != null) {
+            showWarning(error);
+            return;
+        }
+
+        // Misty necesita que el jugador elija a cuál de sus Pokémon de Agua le da la energía
+        PokemonCard target = null;
+        if ("Misty".equals(card.getName())) {
+            target = chooseWaterPokemon(current);
+            if (target == null) {
+                return;
+            }
+        }
+
+        if (!current.playPlayableCard(card, game, target)) {
+            showWarning(card.getName() + " no tuvo efecto en este momento.");
+        }
+        refreshBoardFromGame();
+    }
+
+    // Muestra los Pokémon de Agua en juego para elegir el objetivo de Misty
+    private PokemonCard chooseWaterPokemon(Player player) {
+        ArrayList<PokemonCard> waterPokemon = new ArrayList<>();
+        if (player.getActivePokemon() != null && player.getActivePokemon().getType() == Type.WATER) {
+            waterPokemon.add(player.getActivePokemon());
+        }
+        for (PokemonCard pokemon : player.getBank()) {
+            if (pokemon.getType() == Type.WATER) {
+                waterPokemon.add(pokemon);
+            }
+        }
+        if (waterPokemon.isEmpty()) {
+            showWarning("No tienes Pokémon de Agua en juego para usar Misty.");
+            return null;
+        }
+        String[] options = new String[waterPokemon.size()];
+        for (int i = 0; i < waterPokemon.size(); i++) {
+            options[i] = waterPokemon.get(i).getName();
+        }
+        int choice = JOptionPane.showOptionDialog(this, "¿A qué Pokémon de Agua le das la energía?", "Misty",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        return choice < 0 ? null : waterPokemon.get(choice);
     }
 
     private void updateTurnVisualState() {
@@ -689,11 +893,6 @@ public class GameWindows extends JPanel {
         turnLabel.setText("Turno: " + currentPlayerName);
         updateFieldEnergyIcon();
         refreshHandVisual();
-
-        PokemonSlotPanel currentActiveSlot = getCurrentActiveSlot();
-        if (currentActiveSlot.data == null && hasBenchPokemon(currentPlayer)) {
-            mustPromoteActive = true;
-        }
     }
 
     private void updateFieldEnergyIcon() {
@@ -760,20 +959,6 @@ public class GameWindows extends JPanel {
 
         handCardsPanel.revalidate();
         handCardsPanel.repaint();
-    }
-
-    private boolean hasBenchPokemon(int playerNumber) {
-        if (playerNumber == 1) {
-            return playerOneBenchSlotOne.data != null || playerOneBenchSlotTwo.data != null;
-        }
-        return playerTwoBenchSlotOne.data != null || playerTwoBenchSlotTwo.data != null;
-    }
-
-    private PokemonSlotPanel getCurrentActiveSlot() {
-        if (currentPlayer == 1) {
-            return playerOneActiveSlot;
-        }
-        return playerTwoActiveSlot;
     }
 
     private List<VisualCardData> getCurrentHand() {
@@ -1136,48 +1321,4 @@ public class GameWindows extends JPanel {
         }
     }
 
-    // Datos de prueba
-    private void cargarDatosPrueba() {
-        VisualPokemonData charmander = new VisualPokemonData(
-                "Charmander", "/media/images/pokemons/fire/charmander.png", "/media/audio/screams/004charmander.wav",
-                45, 60, 1, new String[]{"Ascuas", "Lanzallamas"}, new int[]{20, 40}, new int[]{1, 2});
-        charmander.energyType = "Fire";
-        charmander.energyCount = 1;
-
-        VisualPokemonData growlithe = new VisualPokemonData(
-                "Growlithe", "/media/images/pokemons/fire/growlithe.png", "/media/audio/screams/058growlithe.wav",
-                50, 50, 1, new String[]{"Mordisco"}, new int[]{20}, new int[]{1});
-
-        VisualPokemonData squirtle = new VisualPokemonData(
-                "Squirtle", "/media/images/pokemons/water/squirtle.png", "/media/audio/screams/007squirtle.wav",
-                50, 60, 1, new String[]{"Burbuja"}, new int[]{20}, new int[]{1});
-        squirtle.energyType = "Water";
-        squirtle.energyCount = 1;
-
-        VisualPokemonData psyduck = new VisualPokemonData(
-                "Psyduck", "/media/images/pokemons/water/psyduck.png", "/media/audio/screams/054psyduck.wav",
-                45, 60, 1, new String[]{"Confusion"}, new int[]{20}, new int[]{1});
-
-        VisualPokemonData magikarp = new VisualPokemonData(
-                "Magikarp", "/media/images/pokemons/water/magikarp.png", "/media/audio/screams/129magikarp.wav",
-                45, 45, 1, new String[]{"Salpicadura"}, new int[]{0}, new int[]{1});
-
-        playerOneActiveSlot.setPokemon(charmander);
-        playerOneBenchSlotOne.setPokemon(growlithe);
-        playerTwoActiveSlot.setPokemon(squirtle);
-        playerTwoBenchSlotOne.setPokemon(psyduck);
-        playerTwoBenchSlotTwo.setPokemon(magikarp);
-
-        playerOneHand.add(new VisualCardData("Charmeleon", "POKEMON", "/media/images/pokemons/fire/charmeleon.png", "/media/audio/screams/005charmeleon.wav", 80, 80, 1, "Charmander", new String[]{"Garra"}, new int[]{30}, new int[]{1}));
-        playerOneHand.add(new VisualCardData("Charizard", "POKEMON", "/media/images/pokemons/fire/charizard.png", "/media/audio/screams/006charizard.wav", 120, 120, 2, "Charmeleon", new String[]{"Giro Fuego"}, new int[]{60}, new int[]{2}));
-        playerOneHand.add(new VisualCardData("Moltres", "POKEMON", "/media/images/pokemons/fire/moltres.png", "/media/audio/screams/146moltres.wav", 100, 100, 2, null, new String[]{"Pico Taladro"}, new int[]{50}, new int[]{2}));
-        playerOneHand.add(new VisualCardData("Poke Ball", "ENTRENADOR", "/media/images/objects/pokeball.png", null, 0, 0, 0, null, null, null, null));
-        playerOneHand.add(new VisualCardData("Pocion", "OBJETO", "/media/images/objects/potion.png", null, 0, 0, 0, null, null, null, null));
-        playerOneHand.add(new VisualCardData("Prof. Oak", "ENTRENADOR", "/media/images/trainers/oak.png", null, 0, 0, 0, null, null, null, null));
-
-        playerTwoHand.add(new VisualCardData("Pocion", "OBJETO", "/media/images/objects/potion.png", null, 0, 0, 0, null, null, null, null));
-        playerTwoHand.add(new VisualCardData("Poke Ball", "ENTRENADOR", "/media/images/objects/pokeball.png", null, 0, 0, 0, null, null, null, null));
-
-        refreshHandVisual();
-    }
 }
