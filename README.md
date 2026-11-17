@@ -192,6 +192,8 @@ En esta entrega se incorporaron los siguientes elementos:
 
 Los ataques, costos de energia, dano, PS, costos de retirada y cadenas de evolucion del catalogo coinciden con la tabla de Pokemon disponible en este documento.
 
-### Recursos multimedia pendientes
+### Recurso pendiente de esta entrega
 
-El proyecto contiene imagenes para todos los Pokemon del catalogo y archivos de audio para casi todos ellos. Actualmente no existe el archivo `App/src/media/audio/screams/006charizard.wav`, por lo que Charizard se muestra correctamente pero no tiene audio asociado hasta que se agregue ese recurso.
+El unico recurso multimedia que falta es el audio de Charizard. No existe actualmente el archivo `App/src/media/audio/screams/006charizard.wav`; por eso Charizard se muestra correctamente, pero al hacer clic sobre el no reproduce un grito.
+
+Para completar esta parte, se debe agregar un archivo de audio con ese nombre en `App/src/media/audio/screams/`. La interfaz ya esta preparada para reproducirlo automaticamente cuando el recurso exista. Mientras el archivo no este disponible, el programa evita asignar una ruta invalida y continua funcionando normalmente.
