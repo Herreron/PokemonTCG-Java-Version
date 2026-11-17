@@ -13,6 +13,8 @@ private byte attachedEnergy;
 private final byte phase;
 private final String evolvesFrom;
 private Type type = Type.COLORLESS;
+private String imagePath;
+private String audioPath;
 
 // Constructors
 public PokemonCard(String name, short healthPoints, byte retreatCost,
@@ -39,6 +41,7 @@ this.evolvesFrom = null;
 } else {
 this.evolvesFrom = evolvesFrom;
 }
+refreshMediaPaths();
 
     }
 
@@ -106,7 +109,16 @@ return type;
 public void setType(Type type) {
 if (type != null) {
     this.type = type;
+    refreshMediaPaths();
 }
+    }
+
+public String getImagePath() {
+return imagePath;
+    }
+
+public String getAudioPath() {
+return audioPath;
     }
 
 public boolean isBasicPokemon() {
@@ -144,6 +156,98 @@ return healthPoints <= 0;
 
 public byte calculatePrizePoints() {
 return isEx ? (byte) 2 : (byte) 1;
+    }
+
+private void refreshMediaPaths() {
+if (getName() == null || getName().isEmpty()) {
+    imagePath = null;
+    audioPath = null;
+    return;
+}
+
+String folder;
+switch (type) {
+    case FIRE:
+        folder = "fire";
+        break;
+    case WATER:
+        folder = "water";
+        break;
+    case ELECTRIC:
+        folder = "electric";
+        break;
+    case PSYCHIC:
+        folder = "psico";
+        break;
+    default:
+        folder = "uncolored";
+        break;
+}
+
+String fileName = getName().toLowerCase().replace(" ex", "");
+imagePath = "/media/images/pokemons/" + folder + "/" + fileName + ".png";
+
+int pokedexNumber = getPokedexNumber(getName());
+if (pokedexNumber > 0) {
+    audioPath = String.format("/media/audio/screams/%03d%s.wav", pokedexNumber, fileName);
+} else {
+    audioPath = null;
+}
+    }
+
+private int getPokedexNumber(String pokemonName) {
+switch (pokemonName) {
+    case "Pikachu":
+        return 25;
+    case "Raichu":
+        return 26;
+    case "Charmander":
+        return 4;
+    case "Charmeleon":
+        return 5;
+    case "Squirtle":
+        return 7;
+    case "Wartortle":
+        return 8;
+    case "Blastoise":
+        return 9;
+    case "Jigglypuff":
+        return 39;
+    case "Wigglytuff":
+        return 40;
+    case "Magikarp":
+        return 129;
+    case "Gyarados":
+        return 130;
+    case "Snorlax":
+        return 143;
+    case "Mewtwo ex":
+        return 150;
+    case "Zapdos ex":
+        return 145;
+    case "Moltres ex":
+        return 146;
+    case "Articuno ex":
+        return 144;
+    case "Growlithe":
+        return 58;
+    case "Arcanine":
+        return 59;
+    case "Psyduck":
+        return 54;
+    case "Golduck":
+        return 55;
+    case "Electabuzz":
+        return 125;
+    case "Gastly":
+        return 92;
+    case "Haunter":
+        return 93;
+    case "Gengar":
+        return 94;
+    default:
+        return 0;
+}
     }
 
     @Override

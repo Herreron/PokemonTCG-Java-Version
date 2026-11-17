@@ -246,8 +246,15 @@ public final class PokemonCatalog {
                 || phase < 1 || phase > 3) {
             throw new IllegalArgumentException("Los atributos numericos del Pokemon estan fuera de rango.");
         }
-        return new PokemonCard(name, (short) healthPoints, (byte) retreatCost, attacks, isEx,
-                (byte) phase, evolvesFrom);
+        if (phase == 1) {
+            return new BasicPokemonCard(name, (short) healthPoints, (byte) retreatCost, attacks, isEx);
+        }
+        if (phase == 2) {
+            return new StageOnePokemonCard(name, (short) healthPoints, (byte) retreatCost,
+                    attacks, isEx, evolvesFrom);
+        }
+        return new StageTwoPokemonCard(name, (short) healthPoints, (byte) retreatCost,
+                attacks, isEx, evolvesFrom);
     }
 
     private static PokemonCard withType(PokemonCard pokemon, Type type) {

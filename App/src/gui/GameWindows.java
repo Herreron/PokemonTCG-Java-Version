@@ -277,7 +277,8 @@ public class GameWindows extends JPanel {
             energyCosts[i] = attackList.get(i).getEnergyCost();
         }
 
-        VisualPokemonData data = new VisualPokemonData(pokemon.getName(), buildSpritePath(pokemon), null,
+        VisualPokemonData data = new VisualPokemonData(pokemon.getName(), pokemon.getImagePath(),
+                pokemon.getAudioPath(),
                 pokemon.getHealthPoints(), pokemon.getMaxHealthPoints(), pokemon.getRetreatCost(),
                 attackNames, attackDamages, energyCosts);
         data.energyType = energyType;
@@ -292,7 +293,8 @@ public class GameWindows extends JPanel {
             if (card instanceof PokemonCard) {
                 PokemonCard pokemon = (PokemonCard) card;
                 VisualPokemonData pokemonData = toVisualPokemon(pokemon, "");
-                visualHand.add(new VisualCardData(pokemon.getName(), "POKEMON", pokemonData.spritePath, null,
+                visualHand.add(new VisualCardData(pokemon.getName(), "POKEMON", pokemonData.spritePath,
+                        pokemonData.audioPath,
                         pokemonData.currentHp, pokemonData.maxHp, pokemonData.retreatCost,
                         pokemon.getEvolvesFrom(), pokemonData.attacks, pokemonData.attackDamages,
                         pokemonData.energyCosts));
@@ -309,26 +311,7 @@ public class GameWindows extends JPanel {
     private String buildSpritePath(AbstractCard card) {
         if (card instanceof PokemonCard) {
             PokemonCard pokemon = (PokemonCard) card;
-            String folder;
-            switch (pokemon.getType()) {
-                case FIRE:
-                    folder = "fire";
-                    break;
-                case WATER:
-                    folder = "water";
-                    break;
-                case ELECTRIC:
-                    folder = "electric";
-                    break;
-                case PSYCHIC:
-                    folder = "psico";
-                    break;
-                default:
-                    folder = "uncolored";
-                    break;
-            }
-            String fileName = pokemon.getName().toLowerCase().replace(" ex", "");
-            return "/media/images/pokemons/" + folder + "/" + fileName + ".png";
+            return pokemon.getImagePath();
         }
         switch (card.getName()) {
             case "Pocion":
